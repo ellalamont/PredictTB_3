@@ -91,7 +91,7 @@ P_Genomic_box1
 ###########################################################
 ############ AtLeast.10.Reads vs SAMPLE TYPE ##############
 
-TenReads_box2 <- sputum_pipeSummary %>% 
+TenReads_box1 <- sputum_pipeSummary %>% 
   ggplot(aes(x = Type, y = Txn_Coverage_f)) + 
   geom_boxplot(fill="grey", width = 0.6, outlier.size = 0.9, alpha = 0.2) + 
   geom_point(aes(fill = Type2, shape = Type2), alpha = 0.8, size = 2, position = position_jitter(0.2)) + 
@@ -106,9 +106,9 @@ TenReads_box2 <- sputum_pipeSummary %>%
     x = "Sample type", 
     y = "% transcriptional coverage") + 
   my_plot_themes
-TenReads_box2
-# ggsave(TenReads_box2,
-#        file = paste0("Sputum_TenReads_box2.pdf"),
+TenReads_box1
+# ggsave(TenReads_box1,
+#        file = paste0("Sputum_TenReads_v1.pdf"),
 #        path = "Figures/GenomicRead_Analyses",
 #        width = 6, height = 5, units = "in")
 
