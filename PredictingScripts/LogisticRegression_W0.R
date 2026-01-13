@@ -5,6 +5,10 @@
 # https://www.sthda.com/english/articles/36-classification-methods-essentials/150-stepwise-logistic-regression-essentials-in-r/
 # https://www.sthda.com/english/articles/36-classification-methods-essentials/143-evaluation-of-classification-model-accuracy-essentials/
 
+# https://glmnet.stanford.edu/articles/glmnet.html
+
+
+# Could I train on all these data, then test on W2 or the partial transcriptomes?
 
 # 38 cure, 12 relapse
 
@@ -16,31 +20,6 @@ library(caret)
 library(glmnet)
 # install.packages("pROC")
 library(pROC)
-
-
-###########################################################
-#################### STHDA TUTORIAL #######################
-
-install.packages("mlbench")
-library(mlbench)
-data("PimaIndiansDiabetes2", package = "mlbench")
-head(PimaIndiansDiabetes2)
-PimaIndiansDiabetes2 <- na.omit(PimaIndiansDiabetes2)
-sample_n(PimaIndiansDiabetes2, 3)
-set.seed(123)
-Xtraining.samples <- PimaIndiansDiabetes2$diabetes %>% 
-  createDataPartition(p = 0.8, list = FALSE)
-Xtrain.data  <- PimaIndiansDiabetes2[Xtraining.samples, ]
-Xtest.data <- PimaIndiansDiabetes2[-Xtraining.samples, ]
-# Dumy code categorical predictor variables
-Xx <- model.matrix(diabetes~., Xtrain.data)[,-1]
-# Convert the outcome (class) to a numerical variable
-Xy <- ifelse(Xtrain.data$diabetes == "pos", 1, 0)
-set.seed(123) 
-Xcv.lasso <- cv.glmnet(Xx, Xy, alpha = 1, family = "binomial")
-plot(Xcv.lasso)
-Xcv.lasso$lambda.min
-coef(Xcv.lasso, Xcv.lasso$lambda.min)
 
 ###########################################################
 ##################### ORGANIZE DATA #######################
@@ -100,7 +79,7 @@ cv.lasso <- cv.glmnet(x, y, alpha = 1, family = "binomial")
 
 plot(cv.lasso)
 cv.lasso$lambda.min # 0.05202883. Gives the most accurate lamba
-cv.lasso$lambda.1se # 0.1826832. More conservative, fewer predictors, maybe better for biology
+cv.lasso$lambda.1se # 0.1826832. More conservative/simple, fewer predictors, may be less accurate
 
 # Look at the regression coefficients
 coef(cv.lasso, cv.lasso$lambda.1se)
@@ -116,3 +95,67 @@ View(coef.min_df)
 # Keeps 12 genes... so proceed with this because 12 isn't that many....
 # [1] "(Intercept)" "Rv0046c"     "Rv0345"      "Rv0361"      "Rv0625c"     "Rv1031"      "Rv1032c"    
 # [8] "Rv1083"      "Rv1249c"     "Rv2104c"     "Rv2986c"     "Rv3219"      "Rv3786c"  
+
+###########################################################
+################### COMPUTE LASSO MODEL ###################
+
+# Final model with lambda.min
+lasso.model <- glmnet(x, y, alpha = 1, family = "binomial", lambda = cv.lasso$lambda.min)
+
+# Make prediction on test data
+x.test <- model.matrix(Outcome ~., test.data)[,-1]
+probabilities <- lasso.model %>% predict(newx = x.test) # This gives log odds?
+predicted.classes <- ifelse(probabilities > 0.5, "Relapse", "Cure")
+# Model accuracy
+observed.classes <- test.data$Outcome
+mean(predicted.classes == observed.classes)
+# It guessed they would all be cure...
+
+# Adjust some arguments:
+probabilities2 <- lasso.model %>% predict(newx = x.test, type = "response") # By setting type = "response" this now gives probabilities instead of log odds?
+predicted.classes2 <- ifelse(probabilities > 0.2, "Relapse", "Cure") # Change this value a bit because relapses are so rare
+observed.classes <- test.data$Outcome
+mean(predicted.classes2 == observed.classes) # 0.8333333
+
+###########################################################
+################### COMPUTE RIDGE MODEL ###################
+
+set.seed(42) 
+cv.ridge <- cv.glmnet(x, y, alpha = 0, family = "binomial")
+# Warning messages:
+# 1: In lognet(x, is.sparse, y, weights, offset, alpha, nobs, nvars,  :
+#                one multinomial or binomial class has fewer than 8  observations; dangerous ground
+plot(cv.ridge)
+cv.ridge$lambda.min # 191.3818. Gives the most accurate lamba
+cv.ridge$lambda.1se # 334.4451. More conservative/simple, fewer predictors, may be less accurate
+
+# Look at the regression coefficients
+# Actually don't bother because ridge regression keeps everything
+
+# With lambda.min and alpha = 0 which is ridge regression (uses all variables)
+ridge.model <- glmnet(x, y, alpha = 0, family = "binomial", lambda = cv.ridge$lambda.min)
+ridge_probabilities <- ridge.model %>% predict(newx = x.test, type = "response") # By setting type = "response" this now gives probabilities instead of log odds?
+ridge_predicted.classes <- ifelse(ridge_probabilities > 0.2, "Relapse", "Cure") # Change this value a bit because relapses are so rare
+observed.classes <- test.data$Outcome
+mean(ridge_predicted.classes == observed.classes) # 0.25
+
+# So ridge regression clearly didn't work... model is overfit with using all the genes...
+
+# Try ridge model with weights, give more weight to the relapse cases(?)
+w <- ifelse(y == 1, 299/21, 1)
+ridge.model_weighted <- glmnet(x, y, alpha = 0, family = "binomial", lambda = cv.ridge$lambda.min, weights = w)
+ridge_probabilities_weighted <- ridge.model_weighted %>% predict(newx = x.test, type = "response")
+# This clearly isn't going to be any better. Ridge regression won't work! 
+
+###########################################################
+############### STEPWISE LOGISTIC REGRESSION ##############
+
+# I don't think this is so good when p>>n but will try anyway for practice
+
+# Have to do the full model first??
+full.model <- glm(Outcome ~., data = train.data, family = binomial)
+coef(full.model)
+
+library(MASS)
+# step.model <- full.model %>% stepAIC(trace = FALSE) # Had to stop this, was taking too long
+coef(step.model)
