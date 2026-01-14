@@ -8,8 +8,6 @@
 # https://glmnet.stanford.edu/articles/glmnet.html
 
 
-# Could I train on all these data, then test on W2 or the partial transcriptomes?
-
 # 38 cure, 12 relapse
 
 source("Import_data.R") 
@@ -102,42 +100,55 @@ coef.min_df <- as.data.frame(as.matrix(coef(cv.lasso, s = "lambda.min"))) %>%
 lasso.model <- glmnet(x, y, alpha = 1, family = "binomial", lambda = cv.lasso$lambda.min)
 
 # Make prediction on test data
-x.test <- model.matrix(Outcome ~., test.data)[,-1]
-probabilities <- lasso.model %>% predict(newx = x.test) # This gives log odds?
-predicted.classes <- ifelse(probabilities > 0.5, "Relapse", "Cure")
-# Model accuracy
-observed.classes <- test.data$Outcome
-mean(predicted.classes == observed.classes)
-# It guessed they would all be cure...
+x.test <- model.matrix(Outcome ~., test.data)[,-1] # make a matrix
+log_odds <- predict(object = lasso.model, newx = x.test)
+probabilities <- predict(object = lasso.model, newx = x.test, type = "response")
 
-# Adjust some arguments:
-probabilities2 <- lasso.model %>% predict(newx = x.test, type = "response") # By setting type = "response" this now gives probabilities instead of log odds?
-predicted.classes2 <- ifelse(probabilities2 > 0.2, "Relapse", "Cure") # Change this value a bit because relapses are so rare
-observed.classes <- test.data$Outcome
-mean(predicted.classes2 == observed.classes) # 0.8333333
+# See how well it worked
+predicted_classes <- ifelse(probabilities > 0.5, "Relapse", "Cure") %>% # 0.5 is arbitrary
+  as.vector() %>% 
+  factor(levels = c("Cure", "Relapse"))
+observed_classes <- test.data$Outcome
+mean(predicted_classes == observed_classes) # 0.8333333. Doesn't mean much
 
 ###########################################################
 ############# HOW WELL THE LASSO MODEL WORKED #############
 
 # Classification Accuracy: Proportion of observations that have been correctly classified
 # Classification Error Rate: Proportion of observations that have been misclassified (Error Rate = 1 - accuracy)
-Accuracy <- mean(observed.classes == predicted.classes2) # 0.8333333
-Error <- mean(observed.classes != predicted.classes2) # 0.1666667
+Accuracy <- mean(observed_classes == predicted_classes) # 0.8333333
+Error <- mean(observed_classes != predicted_classes) # 0.1666667
 
 # Confusion matrix: Numbers
-table(observed.classes, predicted.classes2)
+table(observed_classes, predicted_classes)
 # Confusion matrix: proportion
-table(observed.classes, predicted.classes2) %>% prop.table() %>% round(digits = 3)
+table(observed_classes, predicted_classes) %>% prop.table() %>% round(digits = 3)
 
-# Other metrics
-predicted.classes3 <- as.vector(predicted.classes2) %>% factor()
-confusionMatrix(predicted.classes3, observed.classes, positive = "Relapse")
+# More detailed confusion matrix and other metrics
+confusionMatrix(data = predicted_classes, reference = observed_classes, positive = "Relapse")
 
 # ROC and AUC
-res.roc <- roc(observed.classes, as.vector(probabilities2))
+res.roc <- roc(response = observed_classes, predictor = probabilities[,1], levels = c("Cure", "Relapse"), direction  = ">")
 plot.roc(res.roc, print.auc = TRUE)
-res.roc <- roc(observed.classes, as.vector(probabilities))
-plot.roc(res.roc, print.auc = TRUE)
+# res.roc <- roc(observed_classes, log_odds[,1]) # The same whether you do probabilities or log odds
+# plot.roc(res.roc, print.auc = TRUE)
+
+boxplot(probabilities[,1] ~ observed_classes,
+        ylab = "Predicted relapse probability")
+
+# Extract some interesting results
+roc.data <- data_frame(
+  thresholds = res.roc$thresholds,
+  sensitivity = res.roc$sensitivities,
+  specificity = res.roc$specificities
+)
+ggplot(roc.data, aes(specificity, sensitivity)) + 
+  geom_path()+
+  scale_x_reverse()+
+  scale_y_continuous()+
+  geom_abline(intercept = 1, slope = 1, linetype = "dashed")+
+  theme_bw()
+
 
 ###########################################################
 ################### COMPUTE RIDGE MODEL ###################
@@ -163,11 +174,6 @@ mean(ridge_predicted.classes == observed.classes) # 0.25
 
 # So ridge regression clearly didn't work... model is overfit with using all the genes...
 
-# Try ridge model with weights, give more weight to the relapse cases(?)
-w <- ifelse(y == 1, 299/21, 1)
-ridge.model_weighted <- glmnet(x, y, alpha = 0, family = "binomial", lambda = cv.ridge$lambda.min, weights = w)
-ridge_probabilities_weighted <- ridge.model_weighted %>% predict(newx = x.test, type = "response")
-# This clearly isn't going to be any better. Ridge regression won't work! 
 
 ###########################################################
 ############ STEPWISE LOGISTIC REGRESSION - BAD ###########
@@ -178,7 +184,7 @@ ridge_probabilities_weighted <- ridge.model_weighted %>% predict(newx = x.test, 
 full.model <- glm(Outcome ~., data = train.data, family = binomial)
 coef(full.model)
 
-library(MASS)
+# library(MASS)
 # step.model <- full.model %>% stepAIC(trace = FALSE) # Had to stop this, was taking too long
 coef(step.model)
 
@@ -235,14 +241,29 @@ rownames(coef.1se_df_Full) # "Rv0625c" Wow only one don't use this one!
 lasso.model_Full <- glmnet(x_Full, y_Full, alpha = 1, family = "binomial", lambda = cv.lasso_Full$lambda.min)
 
 # Make prediction on test data
-x.test_Partial <- model.matrix(Outcome ~., Partial_df2)[,-1]
-probabilities_Partial <- lasso.model_Full %>% predict(newx = x.test_Partial, type = "response") # By setting type = "response" this now gives probabilities instead of log odds?
-predicted.classes_Partial <- ifelse(probabilities_Partial > 0.2, "Relapse", "Cure") # Change this value a bit because relapses are so rare
-observed.classes_Partial <- Partial_df2$Outcome
-mean(predicted.classes_Partial == observed.classes_Partial) # 0.3571429
+x.test_Partial <- model.matrix(Outcome ~., Partial_df2)[,-1] # make a matrix
+probabilities_Partial <- lasso.model_Full %>% predict(newx = x.test_Partial, type = "response") # By setting type = "response" this now gives probabilities instead of log odds
+predicted_classes_Partial <- ifelse(probabilities_Partial > 0.5, "Relapse", "Cure") %>% 
+  as.vector() %>% 
+  factor(levels = c("Cure", "Relapse"))
+observed_classes_Partial <- Partial_df2$Outcome
+mean(predicted_classes_Partial == observed_classes_Partial) # 0.3571429
 # Wow this was really bad!!
 
+# More detailed confusion matrix and other metrics
+confusionMatrix(data = predicted_classes_Partial, reference = observed_classes_Partial, positive = "Relapse")
 
+# ROC + AUC
+res.roc <- roc(response = observed_classes_Partial, predictor = as.vector(probabilities_Partial), levels = c("Cure", "Relapse"), direction = ">")
+plot.roc(res.roc, print.auc = TRUE)
+# Extract some interesting results
+roc.data <- data_frame(
+  thresholds = res.roc$thresholds,
+  sensitivity = res.roc$sensitivities,
+  specificity = res.roc$specificities
+)
 
+boxplot(probabilities_Partial[,1] ~ observed_classes_Partial,
+        ylab = "Predicted relapse probability")
 
-
+# I don't know why the AUC is so high but this is clearly bad... right?
