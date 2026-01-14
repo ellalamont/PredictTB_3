@@ -47,7 +47,7 @@ my_df2 <- na.omit(my_df2) # Didn't change anything
 ###########################################################
 ############### SPLIT INTO TEST/TRAIN TEST ################
 
-set.seed(42)
+set.seed(23) # Initially was 42 so some values are with 42
 training.samples <- my_df2$Outcome %>% 
   createDataPartition(p = 0.7, list = FALSE) # 0.7 gives the test data 3 relapses and the train data 9 relapses
 train.data  <- my_df2[training.samples, ]
@@ -89,9 +89,12 @@ coef.1se_df <- as.data.frame(as.matrix(coef(cv.lasso, s = "lambda.1se"))) %>%
 coef.min_df <- as.data.frame(as.matrix(coef(cv.lasso, s = "lambda.min"))) %>% 
   filter(lambda.min != 0)
 # View(coef.min_df)
-# Keeps 12 genes... so proceed with this because 12 isn't that many....
+# With initial set.seed(42) Keeps 12 genes... so proceed with this because 12 isn't that many....
 # [1] "(Intercept)" "Rv0046c"     "Rv0345"      "Rv0361"      "Rv0625c"     "Rv1031"      "Rv1032c"    
 # [8] "Rv1083"      "Rv1249c"     "Rv2104c"     "Rv2986c"     "Rv3219"      "Rv3786c"  
+
+# With set.seed(23)
+# Rv0625c, Rv2511
 
 ###########################################################
 ################### COMPUTE LASSO MODEL ###################
@@ -105,7 +108,7 @@ log_odds <- predict(object = lasso.model, newx = x.test)
 probabilities <- predict(object = lasso.model, newx = x.test, type = "response")
 
 # See how well it worked
-predicted_classes <- ifelse(probabilities > 0.5, "Relapse", "Cure") %>% # 0.5 is arbitrary
+predicted_classes <- ifelse(probabilities > 0.24, "Relapse", "Cure") %>% # 0.5 is arbitrary
   as.vector() %>% 
   factor(levels = c("Cure", "Relapse"))
 observed_classes <- test.data$Outcome
@@ -128,7 +131,7 @@ table(observed_classes, predicted_classes) %>% prop.table() %>% round(digits = 3
 confusionMatrix(data = predicted_classes, reference = observed_classes, positive = "Relapse")
 
 # ROC and AUC
-res.roc <- roc(response = observed_classes, predictor = probabilities[,1], levels = c("Cure", "Relapse"), direction  = ">")
+res.roc <- roc(response = observed_classes, predictor = probabilities[,1])
 plot.roc(res.roc, print.auc = TRUE)
 # res.roc <- roc(observed_classes, log_odds[,1]) # The same whether you do probabilities or log odds
 # plot.roc(res.roc, print.auc = TRUE)
