@@ -122,7 +122,7 @@ PCA_fig <- my_PCA_df %>%
   # geom_text_repel(aes(label = Lineage), size = 2.5) + 
   scale_fill_manual(values = my_fav_colors) +  
   scale_shape_manual(values = my_fav_shapes) + 
-  geom_text_repel(aes(label = Txn_Coverage_f), size= 2, box.padding = 0.4, segment.color = NA, max.overlaps = Inf) + 
+  geom_text_repel(aes(label = SampleID2), size= 2, box.padding = 0.4, segment.color = "grey", max.overlaps = Inf) + 
   labs(title = "PCA: >1M reads and >60% genes with at least 10 reads (Run1-4) W0 only",
        subtitle = "TPM filtered (Rv genes only) Numbers are % txn coverage",
        x = paste0("PC1: ", summary_PCA[1,1], "%"),
@@ -130,7 +130,7 @@ PCA_fig <- my_PCA_df %>%
   my_plot_themes
 PCA_fig
 # ggsave(PCA_fig,
-#        file = paste0("W0_GoodSamples_tpmf_txnCov60_v1.pdf"),
+#        file = paste0("W0_GoodSamples_tpmf_txnCov60_v2.pdf"),
 #        path = "Figures/PCA",
 #        width = 10, height = 6, units = "in")
 
