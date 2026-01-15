@@ -1,8 +1,9 @@
-# Leave one out cross validation (then logistic regression?)
+# K-fold cross validation (with logistic regression)
 # 1/14/26
 
 # https://www.sthda.com/english/articles/38-regression-model-validation/157-cross-validation-essentials-in-r/
 # https://rpubs.com/uky994/1328850
+
 
 
 library(caret)
@@ -53,56 +54,59 @@ validation_data <- my_df2[-training_samples, ]
 train_data$Outcome <- factor(train_data$Outcome, levels = c("Relapse", "Cure"))
 validation_data$Outcome <- factor(validation_data$Outcome, levels = c("Relapse", "Cure"))
 
-
 ###########################################################
-################ LOOCV LOGISTIC REGRESSION ################
-# CV will chose alpha and lambda
+############### K-FOLD LOGISTIC REGRESSION ################
+# https://rpubs.com/uky994/1328850
+set.seed(23)
 
-# Define training control
-train_control <- trainControl(method = "LOOCV", # Will do leave one out cross validation
-                              classProbs = T, # Caret will produce class probabilities not just predicted classes (cure/relapse). Needed to compute ROC/AUC
-                              summaryFunction = twoClassSummary, # For binary classification. Means caret will compute ROC/AUC, sensitivity, specificity
-                              savePredictions = "final" # caret will store predictions from the best tuned model only
-                              )
+# 10-fold cross-validation, repeated 3 times
+train_control <- trainControl(method = "repeatedcv", 
+                              number = 10, # Number of folds, not to high so there is a chance of relapse in each fold (Also Tried 5)
+                              repeats = 3, # Just picked something, may be too high (Also Tried 10)
+                              verboseIter = F, 
+                              savePredictions = "final", # caret will store predictions from the best tuned model only
+                              classProbs = T,  # Caret will produce class probabilities not just predicted classes (cure/relapse). Needed to compute ROC/AUC
+                              summaryFunction = twoClassSummary) # For binary classification. Means caret will compute ROC/AUC, sensitivity, specificity
 
 # Use when setting alpha = 1 for lasso only. Not during this now, letting it pick it's fav alpha
 # lassoGrid <- expand.grid(alpha = 1, lambda = 10^seq(-3, 1, length = 100)) # A range of lambda values
 
-# Train the model (LOOCV takes a little bit to run)
+# Train the model
 set.seed(23)
-loocv_model <- train(Outcome ~., 
-                     data = train_data, 
-                     method = "glmnet", 
-                     family = "binomial", # tells glmnet its a logistic regression
+kfold_model <- train(Outcome ~ .,
+                     data = train_data,
+                     method = "glmnet",
                      metric = "ROC", # tells caret to optimize ROC during hyperparameter tuning
-                     trControl = train_control, # Provides the strategy to use
-                     preProcess = c("center", "scale"), # Scales the TPM around 0... not sure if this is necessary. When included I get warning about genes having zero variances. And it changes the coefficent values, but not the actual genes used
-                     tuneLength = 50) # how many hyperparameter combinations to try (50 values of lambda)
+                     # tuneGrid = lassoGrid, Only if doing lasso
+                     trControl = train_control,
+                     preProcess = c("center", "scale"),
+                     tuneLength = 50)
 
-# Hyperparameters:
-# Alpha: Controls if it's lasso (1), ridge (0), or elastic net (somewhere between)
-# Lambda: Controls how much coefficents are shrunk towards zero, larger lambda means fewer genes are selected
-# Hyperparameter tuning picks these two values
+# Warning message:
+# In lognet(x, is.sparse, y, weights, offset, alpha, nobs,  ... :
+# one multinomial or binomial class has fewer than 8  observations; dangerous ground
+# In nominalTrainWorkflow(x = x, y = y, wts = weights, info = trainInfo,  :
+# There were missing values in resampled performance measures.
 
 # Check the alpha and best lambda used
-loocv_model$bestTune
-#         alpha     lambda
-# 2327 0.944898 0.06921782
-# So this isn't quite lasso!
+kfold_model$bestTune
+# alpha    lambda
+# 2485     1 0.1425422
+# Alpha is 1 here (lasso!)
+
 
 ###########################################################
 ############### LOOK AT GENES USED IN MODEL ###############
 
-# What genes did it use?
-coef_df <- coef(loocv_model$finalModel, s = lasso_loocv$bestTune$lambda) %>%
+# Get the coefficients from the best model
+coef_df <- coef(kfold_model$finalModel, s = kfold_model$bestTune$lambda) %>%
   as.matrix() %>%
-  as.data.frame() 
+  as.data.frame()
 coef_df <- coef_df[coef_df[, 1] != 0, , drop = FALSE]
 colnames(coef_df)[1] <- "V1"
 rownames(coef_df)
-# [1] "(Intercept)" "Rv0625c"     "Rv1031"      "Rv1249c"     "Rv1357c"     "Rv1511"      "Rv1765A"    
-# [8] "Rv1906c"     "Rv2106"      "Rv2279"      "Rv2355"      "Rv2511"      "Rv2827c"     "Rv2986c"    
-# [15] "Rv3019c"     "Rv3187"      "Rv3472"  
+# [1] "(Intercept)" "Rv0625c"     "Rv1031"      "Rv1249c"     "Rv2106"      "Rv2511"     
+# [7] "Rv3472"    
 
 # Plot the coefficients (it's backwards so negative is actually higher in relapse)
 coef_df %>% 
@@ -118,21 +122,43 @@ coef_df %>%
 ########## MODEL ROC/AUC AND PROBABILITY BOXPLOT ##########
 
 # Look at all of the predictions for each sample
-View(loocv_model$pred)
+# View(kfold_model$pred)
+# Doesn't look like it did a very good job...
 
 # Print the ROC: Not sure if this is plotting in the right direction...
-roc_loocv <- roc(
-  response = loocv_model$pred$obs,
-  predictor = loocv_model$pred$Relapse)
-plot(roc_loocv, print.auc = TRUE, main = "LOOCV logistic regression testing set")
+roc_kfold <- roc(response = kfold_model$pred$obs,
+                 predictor = kfold_model$pred$Relapse)
+plot(roc_kfold, print.auc = TRUE, main = "k-fold logistic regression testing set")
 
 # Print a boxplot of the probabilities
-ggplot(loocv_model$pred, aes(x = obs, y = Relapse)) +
+ggplot(kfold_model$pred, aes(x = obs, y = Relapse)) +
   geom_boxplot(outlier.shape = NA, alpha = 0.7) +
   geom_jitter(width = 0.15, alpha = 0.6, size = 1) +
   labs(x = "Observed outcome", 
        y = "Predicted relapse probability",
-       title = "LOOCV logistic regression testing set") +
+       title = "k-fold logistic regression testing set") +
+  theme_bw()
+  
+# These are plotting all the repeats, just plot the average for each sample
+kfold_avg <- kfold_model$pred %>%
+  group_by(rowIndex) %>%
+  summarize(
+    obs = first(obs),
+    mean_Relapse = mean(Relapse)
+  )
+  
+# Print the average ROC
+roc_kfold_avg <- roc(response = kfold_avg$obs,
+                     predictor = kfold_avg$mean_Relapse)
+plot(roc_kfold_avg, print.auc = TRUE, main = "Average k-fold logistic regression testing set")
+
+# Print the average boxplot of the probabilities
+ggplot(kfold_avg, aes(x = obs, y = mean_Relapse)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.7) +
+  geom_jitter(width = 0.15, alpha = 0.6, size = 1) +
+  labs(x = "Observed outcome", 
+       y = "Predicted relapse probability",
+       title = "Average k-fold logistic regression testing set") +
   theme_bw()
 
 ###########################################################
@@ -140,13 +166,13 @@ ggplot(loocv_model$pred, aes(x = obs, y = Relapse)) +
 
 # Now test on the validation set
 valiation_probabilities <- predict(
-  loocv_model,
+  kfold_model,
   newdata = validation_data,
   type = "prob") # To get probabilities
 
 # ROC for validation set
 roc_val <- roc(response = validation_data$Outcome, predictor = valiation_probabilities$Relapse)
-plot(roc_val, print.auc = TRUE, main = "LOOCV logistic regression validation set")
+plot(roc_val, print.auc = TRUE, main = "k-fold logistic regression validation set")
 
 # Boxplot for validation set
 validation_plot_df <- data.frame(
@@ -156,9 +182,10 @@ ggplot(validation_plot_df, aes(x = True_Outcome, y = Relapse_probibility)) +
   geom_boxplot(outlier.shape = NA, alpha = 0.7) +
   geom_jitter(width = 0.15, alpha = 0.7, size = 2) +
   labs(x = "True outcome",
-    y = "Predicted relapse probability",
-    title = "Validation set predicted relapse probabilities") +
+       y = "Predicted relapse probability",
+       title = "Validation set predicted relapse probabilities") +
   theme_bw()
+
 
 
 
