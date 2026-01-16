@@ -91,8 +91,7 @@ kfold_model <- train(Outcome ~ .,
 # Check the alpha and best lambda used
 kfold_model$bestTune
 # alpha    lambda
-# 2485     1 0.1425422
-# Alpha is 1 here (lasso!)
+# 2385 0.9632653 0.1425422
 
 
 ###########################################################
@@ -105,18 +104,22 @@ coef_df <- coef(kfold_model$finalModel, s = kfold_model$bestTune$lambda) %>%
 coef_df <- coef_df[coef_df[, 1] != 0, , drop = FALSE]
 colnames(coef_df)[1] <- "V1"
 rownames(coef_df)
-# [1] "(Intercept)" "Rv0625c"     "Rv1031"      "Rv1249c"     "Rv2106"      "Rv2511"     
-# [7] "Rv3472"    
+# [1] "(Intercept)" "Rv0625c"     "Rv1031"      "Rv1249c"     "Rv2106"      "Rv2279"      "Rv2355"  
+# [8] "Rv2511"      "Rv2986c"     "Rv3472"    
 
 # Plot the coefficients (it's backwards so negative is actually higher in relapse)
-coef_df %>% 
+coefficients_plot <- coef_df %>% 
   slice(-1) %>% # Remove the y-intercept %>%
   mutate(V2 = V1*-1) %>% # Switch the signs
   ggplot(aes(x = reorder(rownames(.), V2), y = V2)) +
   geom_col() + 
   coord_flip() + 
-  labs(y = "Coefficient", x = "Gene") + 
+  labs(y = "Coefficient", x = "Gene", title = "10-fold 3-repeat CV logistic regression test set") + 
   theme_bw()
+# ggsave(coefficients_plot,
+#        file = paste0("10fold3repeatCV_LR_W0_60Cov_Coefficients.pdf"),
+#        path = "Figures/PredictiveModeling/kfold_LR",
+#        width = 6, height = 5, units = "in")
 
 ###########################################################
 ########## MODEL ROC/AUC AND PROBABILITY BOXPLOT ##########
@@ -128,7 +131,7 @@ coef_df %>%
 # Print the ROC: Not sure if this is plotting in the right direction...
 roc_kfold <- roc(response = kfold_model$pred$obs,
                  predictor = kfold_model$pred$Relapse)
-plot(roc_kfold, print.auc = TRUE, main = "k-fold logistic regression testing set")
+plot(roc_kfold, print.auc = TRUE, main = "10-fold 3-repeat CV logistic regression test set")
 
 # Print a boxplot of the probabilities
 ggplot(kfold_model$pred, aes(x = obs, y = Relapse)) +
@@ -150,16 +153,44 @@ kfold_avg <- kfold_model$pred %>%
 # Print the average ROC
 roc_kfold_avg <- roc(response = kfold_avg$obs,
                      predictor = kfold_avg$mean_Relapse)
-plot(roc_kfold_avg, print.auc = TRUE, main = "Average k-fold logistic regression testing set")
+plot(roc_kfold_avg, print.auc = TRUE, main = "Average 10-fold 3-repeat CV logistic regression test set")
+
+# Make the ROC a ggplot object:
+roc_kfold_avg_df <- data.frame(Sensitivity = roc_kfold_avg$sensitivities,
+                               Specificity = roc_kfold_avg$specificities)
+auc_value <- auc(roc_kfold_avg)
+alpha_value <- kfold_model$bestTune$alpha
+lambda_value <- kfold_model$bestTune$lambda
+roc_plot <- roc_kfold_avg_df %>% 
+  ggplot(aes(x = 1-Specificity, y = Sensitivity)) +
+  geom_path(linewidth = 1) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
+  # scale_x_reverse() +
+  coord_equal() +
+  labs(x = "1-Specificity", y = "Sensitivity",
+       title = "Average 10-fold 3-repeat CV logistic regression test set",
+       subtitle = paste0("AUC=", round(auc_value,3), "; alpha=", round(alpha_value,3), "; lambda=", round(lambda_value,3))) + 
+  theme_bw()
+roc_plot
+# ggsave(roc_plot,
+#        file = paste0("10fold3repeatCV_LR_W0_60Cov_ROC.pdf"),
+#        path = "Figures/PredictiveModeling/kfold_LR",
+#        width = 6, height = 4, units = "in")
 
 # Print the average boxplot of the probabilities
-ggplot(kfold_avg, aes(x = obs, y = mean_Relapse)) +
+Probability_plot <- ggplot(kfold_avg, aes(x = obs, y = mean_Relapse)) +
   geom_boxplot(outlier.shape = NA, alpha = 0.7) +
   geom_jitter(width = 0.15, alpha = 0.6, size = 1) +
   labs(x = "Observed outcome", 
        y = "Predicted relapse probability",
-       title = "Average k-fold logistic regression testing set") +
+       title = "Average 10-fold 3-repeat CV logistic regression test set") +
   theme_bw()
+Probability_plot
+# ggsave(Probability_plot,
+#        file = paste0("10fold3repeatCV_LR_W0_60Cov_Probablities.pdf"),
+#        path = "Figures/PredictiveModeling/kfold_LR",
+#        width = 6, height = 4, units = "in")
+
 
 ###########################################################
 ############### TEST MODEL ON VALIDATION SET ##############
@@ -172,21 +203,44 @@ valiation_probabilities <- predict(
 
 # ROC for validation set
 roc_val <- roc(response = validation_data$Outcome, predictor = valiation_probabilities$Relapse)
-plot(roc_val, print.auc = TRUE, main = "k-fold logistic regression validation set")
+plot(roc_val, print.auc = TRUE, main = "10-fold 3-repeat CV logistic regression validation set")
+
+# Make the ROC a ggplot object:
+roc_val_df <- data.frame(Sensitivity = roc_val$sensitivities, 
+                         Specificity = roc_val$specificities)
+auc_value <- auc(roc_val)
+roc_Val_plot <- roc_val_df %>% 
+  ggplot(aes(x = 1-Specificity, y = Sensitivity)) +
+  geom_path(linewidth = 1) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
+  # scale_x_reverse() +
+  coord_equal() +
+  labs(x = "1-Specificity", y = "Sensitivity",
+       title = "10-fold 3-repeat CV logistic regression validation set",
+       subtitle = paste0("AUC=", round(auc_value,3), "; alpha=", round(alpha_value,3), "; lambda=", round(lambda_value,3))) + 
+  theme_bw()
+roc_Val_plot
+# ggsave(roc_Val_plot,
+#        file = paste0("10fold3repeatCV_LR_W0_60Cov_ROC_Validation.pdf"),
+#        path = "Figures/PredictiveModeling/kfold_LR",
+#        width = 6, height = 4, units = "in")
 
 # Boxplot for validation set
 validation_plot_df <- data.frame(
   True_Outcome = validation_data$Outcome,
   Relapse_probibility = valiation_probabilities$Relapse)
-ggplot(validation_plot_df, aes(x = True_Outcome, y = Relapse_probibility)) +
+Probability_Val_plot <- ggplot(validation_plot_df, aes(x = True_Outcome, y = Relapse_probibility)) +
   geom_boxplot(outlier.shape = NA, alpha = 0.7) +
   geom_jitter(width = 0.15, alpha = 0.7, size = 2) +
   labs(x = "True outcome",
        y = "Predicted relapse probability",
-       title = "Validation set predicted relapse probabilities") +
+       title = "10-fold 3-repeat CV logistic regression validation set") +
   theme_bw()
-
-
+Probability_Val_plot
+# ggsave(Probability_Val_plot,
+#        file = paste0("10fold3repeatCV_LR_W0_60Cov_Probabilities_Validation.pdf"),
+#        path = "Figures/PredictiveModeling/kfold_LR",
+#        width = 6, height = 4, units = "in")
 
 
 
