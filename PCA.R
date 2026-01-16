@@ -46,8 +46,13 @@ my_fav_shapes <- c(`W0 sputum (cure)` = 21, `W0 sputum (relapse)` = 21, `Broth`=
 my_tpm <- GoodSamples60_tpmf %>% # column_to_rownames(var = "X")
   select(!contains("THP1")) # Remove the spiked samples
 
+# Keep genes with >5 tpm (should be using counts!) in at least 50% of samples 
+# 1/16/26: Not doing this now but maybe should?? Doesn't really change what the graph looks like
+# keep <- rowSums(my_tpm > 5) >= 0.5 * ncol(my_tpm)
+# my_tpm2 <- my_tpm[keep, ] # now only 3948 genes (instead of 4030)
+
 # Transform the data
-my_tpm_t <- as.data.frame(t(my_tpm))
+my_tpm_t <- as.data.frame(t(my_tpm)) # or my_tpm2
 
 # Remove columns that are all zero so the scale works for prcomp
 my_tpm_t2 <- my_tpm_t %>% select_if(colSums(.) != 0)
