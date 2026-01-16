@@ -131,7 +131,7 @@ coefficients_plot <- coef_df %>%
 # Print the ROC: Not sure if this is plotting in the right direction...
 roc_kfold <- roc(response = kfold_model$pred$obs,
                  predictor = kfold_model$pred$Relapse)
-plot(roc_kfold, print.auc = TRUE, main = "10-fold 3-repeat CV logistic regression test set")
+plot(roc_kfold, print.auc = TRUE, main = "10-fold 3-repeat CV logistic regression training set")
 
 # Print a boxplot of the probabilities
 ggplot(kfold_model$pred, aes(x = obs, y = Relapse)) +
@@ -139,7 +139,7 @@ ggplot(kfold_model$pred, aes(x = obs, y = Relapse)) +
   geom_jitter(width = 0.15, alpha = 0.6, size = 1) +
   labs(x = "Observed outcome", 
        y = "Predicted relapse probability",
-       title = "k-fold logistic regression testing set") +
+       title = "k-fold logistic regression training set") +
   theme_bw()
   
 # These are plotting all the repeats, just plot the average for each sample
@@ -153,7 +153,7 @@ kfold_avg <- kfold_model$pred %>%
 # Print the average ROC
 roc_kfold_avg <- roc(response = kfold_avg$obs,
                      predictor = kfold_avg$mean_Relapse)
-plot(roc_kfold_avg, print.auc = TRUE, main = "Average 10-fold 3-repeat CV logistic regression test set")
+plot(roc_kfold_avg, print.auc = TRUE, main = "Average 10-fold 3-repeat CV logistic regression training set")
 
 # Make the ROC a ggplot object:
 roc_kfold_avg_df <- data.frame(Sensitivity = roc_kfold_avg$sensitivities,
@@ -168,7 +168,7 @@ roc_plot <- roc_kfold_avg_df %>%
   # scale_x_reverse() +
   coord_equal() +
   labs(x = "1-Specificity", y = "Sensitivity",
-       title = "Average 10-fold 3-repeat CV logistic regression test set",
+       title = "Average 10-fold 3-repeat CV logistic regression train set",
        subtitle = paste0("AUC=", round(auc_value,3), "; alpha=", round(alpha_value,3), "; lambda=", round(lambda_value,3))) + 
   theme_bw()
 roc_plot
@@ -183,7 +183,7 @@ Probability_plot <- ggplot(kfold_avg, aes(x = obs, y = mean_Relapse)) +
   geom_jitter(width = 0.15, alpha = 0.6, size = 1) +
   labs(x = "Observed outcome", 
        y = "Predicted relapse probability",
-       title = "Average 10-fold 3-repeat CV logistic regression test set") +
+       title = "Average 10-fold 3-repeat CV logistic regression train set") +
   theme_bw()
 Probability_plot
 # ggsave(Probability_plot,
