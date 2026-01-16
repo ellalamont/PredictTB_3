@@ -98,7 +98,7 @@ roc_train <- roc(response = train_data$Outcome,
 plot(roc_train, print.auc = TRUE, main = "kNN train set")
 
 ###########################################################
-############## MAKE PREDICTIONS ON TEST DATA ##############
+########### MAKE PREDICTIONS ON VALIDATION DATA ###########
 
 valiation_probabilities <- predict(kNN_model,
                                    newdata = validation_data,
