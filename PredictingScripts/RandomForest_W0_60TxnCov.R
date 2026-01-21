@@ -43,8 +43,8 @@ NearZeroGenes <- nearZeroVar(my_df2 %>% select(-Outcome))
 my_df3 <- my_df2 %>% select(-NearZeroGenes) # Now 4025 genes
 
 # Saving for trying in https://genesrf.iib.uam.es/
-my_df_tosave <- my_df %>% select(-NearZeroGenes) %>% t()
-write.table(my_df_tosave, file = "Data_for_online_RF_Tool.txt", sep = "\t")
+# my_df_tosave <- my_df %>% select(-NearZeroGenes) %>% t()
+# write.table(my_df_tosave, file = "Data_for_online_RF_Tool.txt", sep = "\t")
 
 ###########################################################
 ################ KEEP OUT A VALIDATION SET ################
