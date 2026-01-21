@@ -35,8 +35,12 @@ my_df2 <- my_df %>% select(-SampleID2)
 # Remove na
 my_df2 <- na.omit(my_df2) # Didn't change anything
 
+# Remove genes with near zero variance
+NearZeroGenes <- nearZeroVar(my_df2 %>% select(-Outcome))
+my_df3 <- my_df2 %>% select(-NearZeroGenes) # Now 4025 genes
+
 # Outcome must be factor with "Relapse" first
-my_df2$Outcome <- factor(my_df2$Outcome, levels = c("Relapse", "Cure"))
+my_df3$Outcome <- factor(my_df3$Outcome, levels = c("Relapse", "Cure"))
 
 
 ###########################################################
@@ -44,10 +48,10 @@ my_df2$Outcome <- factor(my_df2$Outcome, levels = c("Relapse", "Cure"))
 
 # Separate training and testing sets
 set.seed(23)
-training_samples <- my_df2$Outcome %>% 
+training_samples <- my_df3$Outcome %>% 
   createDataPartition(p = 0.7, list = FALSE) # 0.7 gives the test data 3 relapses and the train data 9 relapses
-train_data  <- my_df2[training_samples, ]
-validation_data <- my_df2[-training_samples, ]
+train_data  <- my_df3[training_samples, ]
+validation_data <- my_df3[-training_samples, ]
 
 # Make sure that Relapse is the positive class for caret
 train_data$Outcome <- factor(train_data$Outcome, levels = c("Relapse", "Cure"))
@@ -59,6 +63,7 @@ validation_data$Outcome <- factor(validation_data$Outcome, levels = c("Relapse",
 # CV will chose alpha and lambda
 
 # Define training control
+set.seed(23)
 train_control <- trainControl(method = "LOOCV", # Will do leave one out cross validation
                               classProbs = T, # Caret will produce class probabilities not just predicted classes (cure/relapse). Needed to compute ROC/AUC
                               summaryFunction = twoClassSummary, # For binary classification. Means caret will compute ROC/AUC, sensitivity, specificity
@@ -84,10 +89,10 @@ loocv_model <- train(Outcome ~.,
 # Lambda: Controls how much coefficents are shrunk towards zero, larger lambda means fewer genes are selected
 # Hyperparameter tuning picks these two values
 
-# Check the alpha and best lambda used
+# Check the alpha and best lambda used - This is not consistent even when I set the seed...
 loocv_model$bestTune
-#         alpha     lambda
-# 2327 0.944898 0.06921782
+# alpha     lambda
+# 2128 0.8714286 0.07575889
 # So this isn't quite lasso!
 
 ###########################################################
@@ -100,9 +105,7 @@ coef_df <- coef(loocv_model$finalModel, s = lasso_loocv$bestTune$lambda) %>%
 coef_df <- coef_df[coef_df[, 1] != 0, , drop = FALSE]
 colnames(coef_df)[1] <- "V1"
 rownames(coef_df)
-# [1] "(Intercept)" "Rv0625c"     "Rv1031"      "Rv1249c"     "Rv1357c"     "Rv1511"      "Rv1765A"    
-# [8] "Rv1906c"     "Rv2106"      "Rv2279"      "Rv2355"      "Rv2511"      "Rv2827c"     "Rv2986c"    
-# [15] "Rv3019c"     "Rv3187"      "Rv3472"  
+# [1] "(Intercept)" "Rv0625c"     "Rv1031"      "Rv1249c"     "Rv2511"      "Rv3472"   
 
 # Plot the coefficients (it's backwards so negative is actually higher in relapse)
 coef_df %>% 
@@ -113,6 +116,19 @@ coef_df %>%
   coord_flip() + 
   labs(y = "Coefficient", x = "Gene") + 
   theme_bw()
+coefficients_plot <- coef_df %>% 
+  slice(-1) %>% # Remove the y-intercept %>%
+  mutate(V2 = V1*-1) %>% # Switch the signs
+  ggplot(aes(x = reorder(rownames(.), V2), y = V2)) +
+  geom_col() + 
+  coord_flip() + 
+  labs(y = "Coefficient", x = "Gene", title = "LOOCV logistic regression train set") + 
+  theme_bw()
+coefficients_plot
+# ggsave(coefficients_plot,
+#        file = paste0("LOOCV_LR_W0_60Cov_Coefficients.pdf"),
+#        path = "Figures/PredictiveModeling/LOOCVLR",
+#        width = 6, height = 5, units = "in")
 
 ###########################################################
 ########## MODEL ROC/AUC AND PROBABILITY BOXPLOT ##########
@@ -124,16 +140,46 @@ View(loocv_model$pred)
 roc_loocv <- roc(
   response = loocv_model$pred$obs,
   predictor = loocv_model$pred$Relapse)
-plot(roc_loocv, print.auc = TRUE, main = "LOOCV logistic regression testing set")
+plot(roc_loocv, print.auc = TRUE, main = "LOOCV logistic regression training set")
+
+# Make the ROC a ggplot object:
+roc_loocv_df <- data.frame(Sensitivity = roc_loocv$sensitivities,
+                               Specificity = roc_loocv$specificities)
+auc_value <- auc(roc_loocv)
+alpha_value <- loocv_model$bestTune$alpha
+lambda_value <- loocv_model$bestTune$lambda
+roc_plot <- roc_loocv_df %>% 
+  ggplot(aes(x = 1-Specificity, y = Sensitivity)) +
+  geom_path(linewidth = 1) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
+  # scale_x_reverse() +
+  coord_equal() +
+  labs(x = "1-Specificity", y = "Sensitivity",
+       title = "LOOCV logistic regression train set",
+       subtitle = paste0("AUC=", round(auc_value,3), "; alpha=", round(alpha_value,3), "; lambda=", round(lambda_value,3))) + 
+  theme_bw()
+roc_plot
+# ggsave(roc_plot,
+#        file = paste0("LOOCV_LR_W0_60Cov_ROC.pdf"),
+#        path = "Figures/PredictiveModeling/LOOCV_LR",
+#        width = 6, height = 4, units = "in")
+
 
 # Print a boxplot of the probabilities
-ggplot(loocv_model$pred, aes(x = obs, y = Relapse)) +
+Probability_plot <- ggplot(loocv_model$pred, aes(x = obs, y = Relapse)) +
   geom_boxplot(outlier.shape = NA, alpha = 0.7) +
   geom_jitter(width = 0.15, alpha = 0.6, size = 1) +
   labs(x = "Observed outcome", 
        y = "Predicted relapse probability",
-       title = "LOOCV logistic regression testing set") +
+       title = "LOOCV logistic regression training set") +
   theme_bw()
+Probability_plot
+# ggsave(Probability_plot,
+#        file = paste0("LOOCVCV_LR_W0_60Cov_Probablities.pdf"),
+#        path = "Figures/PredictiveModeling/LOOCV_LR",
+#        width = 6, height = 4, units = "in")
+
+
 
 ###########################################################
 ############### TEST MODEL ON VALIDATION SET ##############
@@ -148,17 +194,44 @@ valiation_probabilities <- predict(
 roc_val <- roc(response = validation_data$Outcome, predictor = valiation_probabilities$Relapse)
 plot(roc_val, print.auc = TRUE, main = "LOOCV logistic regression validation set")
 
+# Make the ROC a ggplot object:
+roc_val_df <- data.frame(Sensitivity = roc_val$sensitivities, 
+                         Specificity = roc_val$specificities)
+auc_value <- auc(roc_val)
+roc_Val_plot <- roc_val_df %>% 
+  ggplot(aes(x = 1-Specificity, y = Sensitivity)) +
+  geom_path(linewidth = 1) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
+  # scale_x_reverse() +
+  coord_equal() +
+  labs(x = "1-Specificity", y = "Sensitivity",
+       title = "LOOCV logistic regression validation set",
+       subtitle = paste0("AUC=", round(auc_value,3), "; alpha=", round(alpha_value,3), "; lambda=", round(lambda_value,3))) + 
+  theme_bw()
+roc_Val_plot
+# ggsave(roc_Val_plot,
+#        file = paste0("LOOCV_LR_W0_60Cov_ROC_Validation.pdf"),
+#        path = "Figures/PredictiveModeling/LOOCV_LR",
+#        width = 6, height = 4, units = "in")
+
+
+
 # Boxplot for validation set
 validation_plot_df <- data.frame(
   True_Outcome = validation_data$Outcome,
   Relapse_probibility = valiation_probabilities$Relapse)
-ggplot(validation_plot_df, aes(x = True_Outcome, y = Relapse_probibility)) +
+Probability_Val_plot <- ggplot(validation_plot_df, aes(x = True_Outcome, y = Relapse_probibility)) +
   geom_boxplot(outlier.shape = NA, alpha = 0.7) +
   geom_jitter(width = 0.15, alpha = 0.7, size = 2) +
   labs(x = "True outcome",
-    y = "Predicted relapse probability",
-    title = "Validation set predicted relapse probabilities") +
+       y = "Predicted relapse probability",
+       title = "LOOCV logistic regression validation set") +
   theme_bw()
+Probability_Val_plot
+# ggsave(Probability_Val_plot,
+#        file = paste0("LOOCV_LR_W0_60Cov_Probabilities_Validation.pdf"),
+#        path = "Figures/PredictiveModeling/LOOCV_LR",
+#        width = 6, height = 4, units = "in")
 
 
 
