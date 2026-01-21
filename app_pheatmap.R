@@ -17,8 +17,7 @@ my_plot_themes <- theme_bw() +
         axis.text.x = element_text(angle = 0, size=12, vjust=1, hjust=0.5),
         axis.title.y = element_text(size=12),
         axis.text.y = element_text(size=12), 
-        plot.subtitle = element_text(size=12), 
-        plot.margin = margin(10, 10, 10, 20))
+        plot.subtitle = element_text(size=12))
 
 my_annotation_colors <- list(
   Type2 = c("W0 sputum (cure)" = "#0072B2",

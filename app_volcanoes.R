@@ -17,8 +17,7 @@ my_plot_themes <- theme_bw() +
         axis.text.x = element_text(angle = 0, size=14, vjust=1, hjust=0.5),
         axis.title.y = element_text(size=14),
         axis.text.y = element_text(size=14), 
-        plot.subtitle = element_text(size=10), 
-        plot.margin = margin(10, 10, 10, 20))
+        plot.subtitle = element_text(size=10))
 
 
 
