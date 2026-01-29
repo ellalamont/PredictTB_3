@@ -295,25 +295,6 @@ BrothSampleList <- my_pipeSummary %>%
   filter(str_detect(SampleID, "Broth")) %>%
   pull(SampleID)
 
-# With 80% Transcriptional Coverage
-# GoodSampleList80 <- my_pipeSummary %>%
-#   filter(N_Genomic >= 1000000 & Txn_Coverage_f >= 80) %>% 
-#   pull(SampleID2)
-# SputumSampleList80 <- GoodSampleList80[grep("W", GoodSampleList80)] # 45 as of Run3
-# GoodSamples80_pipeSummary <- my_pipeSummary %>% filter(SampleID2 %in% GoodSampleList80)
-# GoodSamples80_tpmf <- All_tpm_f %>% dplyr::select(all_of(GoodSampleList80))
-# GoodSamples80_tpm <- All_tpm %>% dplyr::select(all_of(GoodSampleList80))
-# GoodSamples80_RawReadsf <- All_RawReads_f %>% dplyr::select(X, all_of(GoodSampleList80))
-# GoodSamples80_tpmfbc <- All_tpm_f.bc %>% dplyr::select(all_of(GoodSampleList80))
-
-# With 50% Transcriptional Coverage
-# GoodSampleList50 <- my_pipeSummary %>%
-#   filter(N_Genomic >= 1000000 & Txn_Coverage_f >= 50) %>% 
-#   pull(SampleID2)
-# SputumSampleList50 <- GoodSampleList50[grep("W", GoodSampleList50)] # 56 as of Run3
-# GoodSamples50_pipeSummary <- my_pipeSummary %>% filter(SampleID2 %in% GoodSampleList50)
-# GoodSamples50_tpmf <- All_tpm_f %>% dplyr::select(all_of(GoodSampleList50))
-
 # With 60% Transcriptional Coverage (11/3/25)
 # 1/8/26: Removing the >1 M reads requirement
 GoodSampleList60 <- my_pipeSummary %>%
@@ -325,8 +306,7 @@ GoodSamples60_pipeSummary <- my_pipeSummary %>%
 GoodSamples60_tpmf <- All_tpm_f %>% dplyr::select(all_of(GoodSampleList60))
 GoodSamples60_RawReadsf <- All_RawReads_f %>% dplyr::select(X, all_of(GoodSampleList60))
 
-# Extra samples between 80txnCov and 60txnCov
-# setdiff(SputumSampleList60, SputumSampleList80)
+
 
 ###########################################################
 ############# TPM WITH <10TPM GENES REMOVED ###############
@@ -350,4 +330,42 @@ my_pipeSummary %>%
   # filter(Txn_Coverage_f >=60) %>%
   group_by(Week, Outcome, main_lineage) %>%
   summarize(N_samples = n())
+
+my_pipeSummary %>% 
+  filter(!is.na(Patient)) %>% # 123 total sputum samples
+  # filter(N_Genomic >= 1000000) %>% 
+  filter(Txn_Coverage_f >=60) %>%
+  group_by(Week, Outcome, Arm) %>%
+  summarize(N_samples = n())
+
+
+###########################################################
+################### EXPORT METADATA INFO ##################
+# 1/29/26 for Adding to the DEG code on the lenovo
+
+GoodSputum60_pipeSummary <- GoodSamples60_pipeSummary %>% filter(SampleID2 %in% colnames(GoodSputum60_tpmf))
+
+
+###########################################################
+##################### EXPORT TPM INFO #####################
+# 1/29/26 for Jason Yang
+
+GoodSputum60_tpmf <- GoodSamples60_tpmf %>% select(contains("W"))
+GoodSputum60_pipeSummary <- GoodSamples60_pipeSummary %>% filter(SampleID2 %in% colnames(GoodSputum60_tpmf))
+
+# Clean up the names
+names(GoodSputum60_tpmf) <- sub("^Run[0-9]+_", "", names(GoodSputum60_tpmf))
+GoodSputum60_pipeSummary$SampleID <- gsub(pattern = "_S[0-9]+$", replacement = "", x = GoodSputum60_pipeSummary$SampleID)
+GoodSputum60_Metadata <- GoodSputum60_pipeSummary %>% select(SampleID, Week, Patient, Outcome, Type2, Arm, main_lineage)
+
+# Remove the failure sample (12025) and the cousin relapse (13001, 13026)
+GoodSputum60_tpmf <- GoodSputum60_tpmf %>% select(-any_of(c("W0_12025", "W0_13001", "W2_13001", "W0_13026", "W2_13026")))
+GoodSputum60_Metadata <- GoodSputum60_Metadata %>% filter(!SampleID %in% c("W0_12025", "W0_13001", "W2_13001", "W0_13026", "W2_13026"))
+
+# Check the tpm and metadata have the same samples
+stopifnot(setequal(GoodSputum60_Metadata$SampleID, colnames(GoodSputum60_tpmf)))
+
+# Save as csv
+write.csv(GoodSputum60_tpmf, "Data/ForJasonYang/SputumTPM_20260129.csv")
+write.csv(GoodSputum60_Metadata, "Data/ForJasonYang/SputumMetadata_20260129.csv", row.names = F)
             

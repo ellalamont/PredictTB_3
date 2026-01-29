@@ -69,7 +69,12 @@ Exp_metadata_3 <- Exp_metadata_3 %>% mutate(Patient = paste0("P_", SUBJID)) # 10
 my_metadata <- Exp_metadata_3 %>% select(outcome, arm, Visit, Age, SEX, TBprev, BMI, Weight, CurrentSmoker, PrevSmoker, SmokeDuration, TTD, XpertCT_wk0, Patient, main_lineage, sub_lineage) %>% rename(Arm = arm)
 
 
+###########################################################
+################### EXPORT INFORMATION ####################
 
+# 1/29/26: Exporting the SUBJID of all the sputum samples I have for Shawn
 
-
-
+SUBJID_only <- Sample_list %>% 
+  filter(Comments != "feasibility test set") %>%
+  distinct(SUBJID)
+write.csv(SUBJID_only, "Data/Sample_Metadata/All_SUBJID_toUW.csv", row.names = F)
