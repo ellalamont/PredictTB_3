@@ -57,8 +57,12 @@ Lineage_plot <- my_lineages %>%
   geom_text(aes(label = after_stat(count)), stat = "count", position = position_dodge(width = 0.9), vjust = -0.3) + 
   scale_fill_manual(values = c("L2" = "dodgerblue2", "L3" = "purple3", "L4" = "red")) + 
   scale_y_continuous(limits = c(0,62), breaks = seq(0, 62, 10), expand = expansion(mult = c(0, 0.05))) +
-  labs(x = NULL, y = "# of samples", fill = "Lineage") + 
+  labs(x = NULL, y = "# of samples", fill = "Lineage",
+       title = "subMIC subset lineages") + 
   my_plot_themes
 Lineage_plot
-
+# ggsave(Lineage_plot,
+#        file = "subMIC_Subset_Lineages_Bar1.pdf",
+#        path = "Figures/Lineages",
+#        width = 4, height = 4, units = "in")
 
