@@ -77,4 +77,4 @@ my_metadata <- Exp_metadata_3 %>% select(outcome, arm, Visit, Age, SEX, TBprev, 
 SUBJID_only <- Sample_list %>% 
   filter(Comments != "feasibility test set") %>%
   distinct(SUBJID)
-write.csv(SUBJID_only, "Data/Sample_Metadata/All_SUBJID_toUW.csv", row.names = F)
+# write.csv(SUBJID_only, "Data/Sample_Metadata/All_SUBJID_toUW.csv", row.names = F)
