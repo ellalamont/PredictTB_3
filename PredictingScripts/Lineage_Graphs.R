@@ -105,3 +105,54 @@ ggsave(Lineage_plot2,
        file = "All_Lineages_Bar1.pdf",
        path = "Figures/Lineages",
        width = 4, height = 4, units = "in")
+
+###########################################################
+#################### CHI-SQUARED TEST #####################
+
+my_lineages_testing <- my_lineages %>%
+  filter(Outcome %in% c("Relapse", "Cure")) %>%
+  filter(main_lineage2 %in% c("L2", "L4")) %>% # Just keep L2 and L4 to make it easy
+  select(SUBJID, Outcome, main_lineage2)
+  # count(Outcome, main_lineage2) # %>%
+  # group_by(Outcome)
+
+# Are lineage and outcome independent?
+# What are the expected counts if they are independent?
+
+# Create a table of the data
+my_lineages_table <- table(my_lineages_testing$main_lineage2, my_lineages_testing$Outcome)
+
+# Checked by hand that all expected counts are >5
+
+# Run the Chi-square test
+chisq.test(my_lineages_testing$main_lineage2, my_lineages_testing$Outcome, correct = F)
+# X-squared = 1.2283, df = 1, p-value = 0.2677
+
+# Run a more complicated Chi-square test that shows expected counts
+library(gmodels)
+CrossTable(my_lineages_testing$main_lineage2, my_lineages_testing$Outcome,
+           expected = F, prop.r = T, prop.c = T, prop.chisq = F, chisq = T, format = "SPSS")
+
+
+###########################################################
+################ TWO-SAMPLE BINOMIAL TEST #################
+
+# Same as Chi-squared but gives confidence interval as well
+
+# Create a table of the data
+my_lineages_table <- table(my_lineages_testing$main_lineage2, my_lineages_testing$Outcome)
+
+prop.test(my_lineages_table, correct = F)
+# X-squared = 1.2283, df = 1, p-value = 0.2677
+# alternative hypothesis: two.sided
+# 95 percent confidence interval:
+#   -0.09111547  0.02645518
+# sample estimates:
+#   prop 1    prop 2 
+# 0.9147287 0.9470588 
+
+
+
+
+
+
