@@ -24,8 +24,8 @@ my_plot_themes <- theme_bw() +
         axis.text.x = element_text(angle = 0, size=14, vjust=0, hjust=0.5),
         axis.title.y = element_text(size=14),
         axis.text.y = element_text(size=14), 
-        plot.subtitle = element_text(size=9), 
-        plot.margin = margin(10, 10, 10, 20)# ,
+        plot.subtitle = element_text(size=9)# , 
+        # plot.margin = margin(10, 10, 10, 20)# ,
         # panel.background = element_rect(fill='transparent'),
         # plot.background = element_rect(fill='transparent', color=NA),
         # legend.background = element_rect(fill='transparent'),
@@ -79,7 +79,7 @@ PCA_fig <- my_PCA_df %>%
   scale_fill_manual(values = my_fav_colors) +  
   scale_shape_manual(values = my_fav_shapes) + 
   # geom_text_repel(aes(label = Patient), size= 2, box.padding = 0.4, segment.color = "black", max.overlaps = Inf) + 
-  labs(title = "PCA: >1M reads and >60% genes with at least 10 reads (Run1-4)",
+  labs(title = "PCA: >60% genes with at least 10 reads (Run1-4)",
        subtitle = "TPM filtered (Rv genes only)",
        x = paste0("PC1: ", summary_PCA[1,1], "%"),
        y = paste0("PC2: ", summary_PCA[2,1], "%")) +
@@ -90,6 +90,24 @@ PCA_fig
 #        path = "Figures/PCA",
 #        width = 10, height = 6, units = "in")
 
+# Assuming PC1 is mostly drug response, look at PC2 and PC3
+PCA_fig2 <- my_PCA_df %>% 
+  ggplot(aes(x = PC2, y = PC3, fill = Type2, shape = Type2)) + 
+  geom_point(aes(fill = Type2, shape = Type2), size = 5, alpha = 0.8, stroke = 0.8) +
+  # geom_text_repel(aes(label = Lineage), size = 2.5) + 
+  scale_fill_manual(values = my_fav_colors) +  
+  scale_shape_manual(values = my_fav_shapes) + 
+  # geom_text_repel(aes(label = Patient), size= 2, box.padding = 0.4, segment.color = "black", max.overlaps = Inf) + 
+  labs(title = "PCA: >60% genes with at least 10 reads (Run1-4)",
+       subtitle = "TPM filtered (Rv genes only)",
+       x = paste0("PC2: ", summary_PCA[2,1], "%"),
+       y = paste0("PC3: ", summary_PCA[3,1], "%")) +
+  my_plot_themes
+PCA_fig2
+# ggsave(PCA_fig2,
+#        file = paste0("GoodSamples_tpmf_txnCov60_v2.pdf"),
+#        path = "Figures/PCA",
+#        width = 10, height = 6, units = "in")
 
 ###########################################################
 ############ PCA GOODSAMPLES TPM_F 60% - W0 ONLY ##########
