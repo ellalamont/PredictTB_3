@@ -29,11 +29,17 @@ Extra_values <- read_excel("Data/Sample_Metadata/Predict trizol sample subMIC se
 metadata_2 <- merge(metadata, Extra_values, by = c("SUBJID", "outcome", "arm"), all = TRUE)
 
 # Import the lineage information
-Lineage_info <- read_excel("Data/Sample_Metadata/predict_148_17NOV2023_TBprofilerResults_TS.xlsx", sheet = "Summary")
-Lineage_info$SUBJID <- gsub("_.*$", "", Lineage_info$sample) # New column with any characters after (.*) to end of sring ($) removed 
-Lineage_info$Collection_TimePoint <- gsub("^.*?_", "", Lineage_info$sample)
+# Lineage_info <- read_excel("Data/Sample_Metadata/predict_148_17NOV2023_TBprofilerResults_TS.xlsx", sheet = "Summary")
+# Lineage_info$SUBJID <- gsub("_.*$", "", Lineage_info$sample) # New column with any characters after (.*) to end of sring ($) removed 
+# Lineage_info$Collection_TimePoint <- gsub("^.*?_", "", Lineage_info$sample)
 
-metadata_3 <- merge(metadata_2, Lineage_info, by = c("SUBJID"), all = TRUE)
+# 2/2/26: Import the complete lineage information
+Lineage_info_all <- read_excel("Data/Sample_Metadata/All_SUBJID_toUW_strain lineage.xlsx", sheet = "Lineages_Combined")
+Lineage_info_all$SUBJID <- gsub("_.*$", "", Lineage_info_all$sample) # New column with any characters after (.*) to end of sring ($) removed
+Lineage_info_all$Collection_TimePoint <- gsub("^.*?_", "", Lineage_info_all$sample)
+
+
+metadata_3 <- merge(metadata_2, Lineage_info_all, by = c("SUBJID"), all = TRUE)
 
 # Import the sub breakpoint MICs for RIF and INH
 subMIC_info <- read_excel("Data/Sample_Metadata/Sub-breakpoint MIC_20260126_YP.xlsx")
@@ -46,7 +52,7 @@ metadata_4 <- merge(metadata_3, subMIC_info, by = c("SUBJID"), all = TRUE)
 ##################### EXPERIMENTAL SET ####################
 # Want to look at the data that I understand and with the feasibility test set removed
 
-Exp_metadata <- metadata_4 # 1516 rows
+Exp_metadata <- metadata_4 # 1524 rows
 
 # Add a week column
 Exp_metadata$Week <- Exp_metadata$Visit
@@ -60,7 +66,7 @@ Exp_metadata_2 <- Exp_metadata %>% filter(Comments != ("feasibility test set")) 
 Exp_metadata_3 <- Exp_metadata_2 %>% filter(Age != "NA")
 
 # Add a patient column to match the sequencing
-Exp_metadata_3 <- Exp_metadata_3 %>% mutate(Patient = paste0("P_", SUBJID)) # 1023 rows
+Exp_metadata_3 <- Exp_metadata_3 %>% mutate(Patient = paste0("P_", SUBJID)) # 1030 rows
 
 
 ###########################################################
@@ -74,7 +80,7 @@ my_metadata <- Exp_metadata_3 %>% select(outcome, arm, Visit, Age, SEX, TBprev, 
 
 # 1/29/26: Exporting the SUBJID of all the sputum samples I have for Shawn
 
-SUBJID_only <- Sample_list %>% 
-  filter(Comments != "feasibility test set") %>%
-  distinct(SUBJID)
+# SUBJID_only <- Sample_list %>% 
+#   filter(Comments != "feasibility test set") %>%
+#   distinct(SUBJID)
 # write.csv(SUBJID_only, "Data/Sample_Metadata/All_SUBJID_toUW.csv", row.names = F)

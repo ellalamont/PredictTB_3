@@ -2,20 +2,23 @@
 # E. Lamont 
 # 1/28/26
 
+# 2/2/26: re-doing after getting the lineage info from all the samples
+
 source("Import_data.R")
 
-# Using Lineage_info from Import_SampleMetadata.R
+# Using Lineage_info_all from Import_SampleMetadata.R
 
 # Plot basics
 my_plot_themes <- theme_bw() +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
-  theme(legend.position = "bottom",legend.text=element_text(size=14),
-        legend.title = element_text(size = 14),
+  theme(legend.position = "bottom",legend.text=element_text(size=8),
+        legend.title = element_blank(),
+        legend.key.size = unit(0.4, "cm"), legend.spacing.y = unit(0.2, "cm"),
         plot.title = element_text(size=10), 
-        axis.title.x = element_text(size=14), 
-        axis.text.x = element_text(angle = 0, size=14, vjust=1, hjust=0.5),
-        axis.title.y = element_text(size=14),
-        axis.text.y = element_text(size=14), 
+        axis.title.x = element_text(size=10), 
+        axis.text.x = element_text(angle = 0, size=10, vjust=1, hjust=0.5),
+        axis.title.y = element_text(size=10),
+        axis.text.y = element_text(size=10), 
         plot.subtitle = element_text(size=10))# , 
         # plot.margin = margin(10, 10, 10, 20),
         # panel.background = element_rect(fill='transparent'),
@@ -33,18 +36,24 @@ my_plot_themes <- theme_bw() +
 Lineage_info[duplicated(Lineage_info$SUBJID),]
 
 my_lineages <- metadata_4 %>% 
-  select(SUBJID, outcome, sample, Collection_TimePoint, main_lineage, sub_lineage) %>%
+  select(SUBJID, outcome, sample, Collection_TimePoint, main_lineage, sub_lineage, arm) %>%
   mutate(Outcome = ifelse(outcome == "Prob Relap", "Relapse", outcome)) %>%
   mutate(Outcome = ifelse(Outcome == "success", "Cure", Outcome)) %>%
-  mutate(main_lineage = recode(main_lineage, "lineage2" = "L2", "lineage3" = "L3", "lineage4" = "L4"))
-
-# Remove duplicates by keeping just the D0 and S (don't know the difference)
-my_lineages <- my_lineages %>%
-  filter(Collection_TimePoint %in% c("D0", "S", "D0_2")) %>%
-  distinct(SUBJID, .keep_all = T)
+  mutate(main_lineage2 = recode(main_lineage, "lineage2" = "L2", "lineage3" = "L3", "lineage4" = "L4", "lineage1" = "L1")) %>%
+  mutate(main_lineage2 = ifelse(grepl(";", main_lineage2), "mixed", main_lineage2)) %>% # recode the mixed lineages
+  filter(main_lineage2 != "NA") %>%
+  filter(!is.na(arm)) %>% # Remove the NA sample 14004 (where did this come from?)
+  filter(Collection_TimePoint %in% c("D0", "S", "D0_2")) %>% # Remove duplicates by keeping just the D0 and S (don't know the difference)
+  distinct(SUBJID, .keep_all = T) # Make sure am only keeping one SUBJID row
 
 # Now there are not duplicates
 my_lineages[duplicated(my_lineages$SUBJID),]
+
+# See the arm fall out
+my_lineages %>% 
+  filter(Outcome %in% c("Relapse", "Cure")) %>% 
+  group_by(arm, Outcome) %>%
+  summarize(N_samples = n())
 
 ###########################################################
 ##################### MAKE A BARPLOT ######################
@@ -52,11 +61,11 @@ my_lineages[duplicated(my_lineages$SUBJID),]
 Lineage_plot <- my_lineages %>%
   filter(Outcome %in% c("Relapse", "Cure")) %>% 
   # mutate(Type = factor(Type)) %>% 
-  ggplot(aes(x = Outcome, fill = main_lineage)) + 
+  ggplot(aes(x = Outcome, fill = main_lineage2)) + 
   geom_bar(position = position_dodge(), color = "black") + 
   geom_text(aes(label = after_stat(count)), stat = "count", position = position_dodge(width = 0.9), vjust = -0.3) + 
-  scale_fill_manual(values = c("L2" = "dodgerblue2", "L3" = "purple3", "L4" = "red")) + 
-  scale_y_continuous(limits = c(0,62), breaks = seq(0, 62, 10), expand = expansion(mult = c(0, 0.05))) +
+  scale_fill_manual(values = c("L2" = "dodgerblue2", "L3" = "purple3", "L4" = "red", "L1" = "magenta2", "mixed" = "grey")) + 
+  # scale_y_continuous(limits = c(0,62), breaks = seq(0, 62, 10), expand = expansion(mult = c(0, 0.05))) +
   labs(x = NULL, y = "# of samples", fill = "Lineage",
        title = "subMIC subset lineages") + 
   my_plot_themes
@@ -66,3 +75,33 @@ Lineage_plot
 #        path = "Figures/Lineages",
 #        width = 4, height = 4, units = "in")
 
+
+###########################################################
+################# MAKE A STACKED BARPLOT ##################
+
+my_lineages_Percents <- my_lineages %>%
+  filter(Outcome %in% c("Relapse", "Cure")) %>%
+  count(Outcome, main_lineage2) %>%
+  group_by(Outcome) %>%
+  mutate(Percent = round(n/sum(n) * 100, 1)) %>%
+  ungroup()
+my_lineages_Percents
+
+Lineage_plot2 <- my_lineages_Percents %>%
+  ggplot(aes(x = Outcome, y = Percent, fill = main_lineage2)) + 
+  geom_col(color = "black") + 
+  # geom_text(aes(label = scales::percent(after_stat(prop), accuracy = 1)), stat = "count", position = position_fill(vjust = 0.5), size = 3) +
+  scale_fill_manual(values = c("L2" = "dodgerblue2", "L3" = "purple3", "L4" = "red", "L1" = "magenta2", "mixed" = "grey")) + 
+  scale_y_continuous(limits = c(0,100.1), breaks = seq(0, 100.1, 10), expand = expansion(mult = c(0, 0))) +
+  annotate("text", x = "Cure", y = 80, label = "41.0% L2", size = 3) +
+  annotate("text", x = "Cure", y = 30, label = "55.9% L4", size = 3) +
+  annotate("text", x = "Relapse", y = 80, label = "52.4% L2", size = 3) +
+  annotate("text", x = "Relapse", y = 30, label = "42.9% L4", size = 3) +
+  labs(x = NULL, y = "% of samples", fill = "Lineage",
+       title = NULL) + 
+  my_plot_themes
+Lineage_plot2
+ggsave(Lineage_plot2,
+       file = "All_Lineages_Bar1.pdf",
+       path = "Figures/Lineages",
+       width = 4, height = 4, units = "in")
