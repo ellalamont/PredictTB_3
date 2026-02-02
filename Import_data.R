@@ -335,7 +335,7 @@ my_pipeSummary %>%
   filter(!is.na(Patient)) %>% # 123 total sputum samples
   # filter(N_Genomic >= 1000000) %>% 
   filter(Txn_Coverage_f >=60) %>%
-  group_by(Week, Outcome, Arm) %>%
+  group_by(Week, Outcome, Arm, main_lineage) %>%
   summarize(N_samples = n())
 
 
@@ -343,7 +343,7 @@ my_pipeSummary %>%
 ################### EXPORT METADATA INFO ##################
 # 1/29/26 for Adding to the DEG code on the lenovo
 
-GoodSputum60_pipeSummary <- GoodSamples60_pipeSummary %>% filter(SampleID2 %in% colnames(GoodSputum60_tpmf))
+# GoodSputum60_pipeSummary <- GoodSamples60_pipeSummary %>% filter(SampleID2 %in% SputumSampleList60)
 
 
 ###########################################################
