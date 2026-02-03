@@ -366,6 +366,24 @@ GoodSputum60_Metadata <- GoodSputum60_Metadata %>% filter(!SampleID %in% c("W0_1
 stopifnot(setequal(GoodSputum60_Metadata$SampleID, colnames(GoodSputum60_tpmf)))
 
 # Save as csv
-write.csv(GoodSputum60_tpmf, "Data/ForJasonYang/SputumTPM_20260129.csv")
-write.csv(GoodSputum60_Metadata, "Data/ForJasonYang/SputumMetadata_20260129.csv", row.names = F)
-            
+# write.csv(GoodSputum60_tpmf, "Data/ForJasonYang/SputumTPM_20260129.csv")
+# write.csv(GoodSputum60_Metadata, "Data/ForJasonYang/SputumMetadata_20260129.csv", row.names = F)
+
+
+# 2/3/26 For Evan/Howard: Want All the W0
+W0_tpmf <- All_tpm_f %>% select(any_of(my_pipeSummary$SampleID2)) %>%
+  select(contains("W0"))
+W0_pipeSummary <- my_pipeSummary %>% filter(SampleID2 %in% colnames(W0_tpmf))
+
+# Clean up the names
+names(W0_tpmf) <- sub("^Run[0-9]+_", "", names(W0_tpmf))
+W0_pipeSummary$SampleID <- gsub(pattern = "_S[0-9]+$", replacement = "", x = W0_pipeSummary$SampleID)
+W0_Metadata <- W0_pipeSummary %>% select(SampleID, Week, Patient, Outcome, Arm, main_lineage)
+# Check the tpm and metadata have the same samples
+stopifnot(setequal(W0_Metadata$SampleID, colnames(W0_tpmf)))
+
+# Save as csv
+write.csv(W0_tpmf, "Data/ForEvanJohnson/W0TPM_20260203.csv")
+write.csv(W0_Metadata, "Data/ForEvanJohnson/W0Metadata_20260203.csv", row.names = F)
+
+colSums(W0_tpmf)
