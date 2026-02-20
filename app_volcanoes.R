@@ -1,7 +1,10 @@
 # 1/12/26
+# 2/20/26: Adjusted the p-value and log2fold change options
+# 2/20/26: Making things complicated by adding a summary table so we see sample sizes
 
 library(shiny)
 library(gmodels)
+library(DT)
 
 source("Import_DEG_sets.R") # for list_dfs_f - All FDR-adjusted p-values and with Log2Fold >1 or >2 (Rv genes only)
 source("Import_GeneSets.R")
@@ -36,7 +39,7 @@ ui <- fluidPage(
            # Add buttons for changing the log2fold threshold
            radioButtons("log2fc_threshold", 
                         label = "log2 fold change threshold", 
-                        choices = c("log2FC > abs(1)" = "1", "log2FC > abs(2)" = "2", "Original p-value" = "3"),
+                        choices = c("log2FC > abs(1)" = "1", "log2FC > abs(2)" = "2", "log2FC > abs(2.5)" = "3"),
                         selected = "1",
                         inline = TRUE),
           
@@ -45,9 +48,6 @@ ui <- fluidPage(
                     textInput("my_GeneID", 
                               label = "Gene ID (Will label gene orange)",
                               value = "Rv...")
-             ),
-             column(width = 2.5,
-                    uiOutput("gene_link")  # New UI output for the link
              )
            ),
            # Add checkbox to toggle gene set points
@@ -60,12 +60,34 @@ ui <- fluidPage(
            # Start with no selection
            selectInput("my_GeneSet",
                        label = "Gene Set (Will label genes yellow)",
-                       choices = NULL)
+                       choices = NULL),
+           
+           h5("Sample Size Filters"),
+           selectInput("filter_week",
+                       label = "Week",
+                       choices = unique(my_pipeSummary$Week),
+                       selected = NULL, multiple = T),
+           selectInput("filter_outcome",
+                       label = "Outcome",
+                       choices = unique(my_pipeSummary$Outcome),
+                       selected = NULL, multiple = T),
+           selectInput("filter_arm",
+                       label = "Arm",
+                       choices = unique(my_pipeSummary$Arm),
+                       selected = NULL, multiple = T),
+           selectInput("filter_lineage",
+                       label = "Main Lineage",
+                       choices = unique(my_pipeSummary$main_lineage),
+                       selected = NULL, multiple = T)
     ),
     
     column(width = 8,
            plotlyOutput("volcano_plot",
                         width = "90%", height = "600px"),
+           
+           hr(),
+           h4("Sample Counts"),
+           DT::DTOutput("sample_summary_table")
     ),
   )
   
@@ -73,13 +95,6 @@ ui <- fluidPage(
 
 # Define server logic ----
 server <- function(input, output, session) {
-  
-  # Gene Link
-  output$gene_link <- renderUI({
-    req(input$my_GeneID)  # Ensure there's a valid input
-    url <- paste0("https://mycobrowser.epfl.ch/genes/", input$my_GeneID)
-    tags$a(href = url, target = "_blank", paste0("View Details of ", input$my_GeneID, " on Mycobrowser"))
-  })
   
   # When a new gene set source is selected, update the gene set dropdown
   observeEvent(input$my_GeneSetSource, {
@@ -106,18 +121,18 @@ server <- function(input, output, session) {
     if (input$log2fc_threshold == "1") {
       de_col <- "DE1"
       label_col <- "DE1_labels"
-      p_value <- "FDR_PVALUE"
+      p_value <- "AVG_PVALUE"
       log2fc_cutoff <- 1
     } else if (input$log2fc_threshold == "2") {
       de_col <- "DE2"
       label_col <- "DE2_labels"
-      p_value <- "FDR_PVALUE"
+      p_value <- "AVG_PVALUE"
       log2fc_cutoff <- 2
     } else if (input$log2fc_threshold == "3") {
-      de_col <- "DE1_ogP"
-      label_col <- "DE1_ogP_labels"
+      de_col <- "DE2.5"
+      label_col <- "DE2.5_labels"
       p_value <- "AVG_PVALUE"
-      log2fc_cutoff <- 1
+      log2fc_cutoff <- 2.5
     }
     
     
@@ -159,6 +174,43 @@ server <- function(input, output, session) {
     
     final_plot <- my_volcano_annotated + my_plot_themes 
     final_plot
+  })
+  
+  # Reactive Table of sample sizes
+  summary_table <- reactive({
+    
+    df <- my_pipeSummary %>%
+      filter(!is.na(Patient)) %>%
+      filter(Txn_Coverage_f >= 60)
+    
+    # Apply filters only if selected
+    if (!is.null(input$filter_week))
+      df <- df %>% filter(Week %in% input$filter_week)
+    if (!is.null(input$filter_outcome))
+      df <- df %>% filter(Outcome %in% input$filter_outcome)
+    if (!is.null(input$filter_arm))
+      df <- df %>% filter(Arm %in% input$filter_arm)
+    if (!is.null(input$filter_lineage))
+      df <- df %>% filter(main_lineage %in% input$filter_lineage)
+    
+    # Group only if a filter is provided for Arm and Lineage
+    grouping_vars <- c("Week", "Outcome")
+    if (length(input$filter_arm) > 0)
+      grouping_vars <- c(grouping_vars, "Arm")
+    if (length(input$main_lineage) > 0)
+      grouping_vars <- c(grouping_vars, "main_lineage")
+    
+    df %>%
+      group_by(across(all_of(grouping_vars))) %>%
+      summarize(N_samples = n(), .groups = "drop")
+  })
+  
+  output$sample_summary_table <- DT::renderDT({
+    DT::datatable(
+      summary_table(),
+      options = list(pageLength = 10, scrollX = TRUE),
+      rownames = FALSE
+    )
   })
   
 }
