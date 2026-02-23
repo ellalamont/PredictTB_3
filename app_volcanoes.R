@@ -71,14 +71,10 @@ ui <- fluidPage(
                        label = "Outcome",
                        choices = unique(my_pipeSummary$Outcome),
                        selected = NULL, multiple = T),
-           selectInput("filter_arm",
-                       label = "Arm",
-                       choices = unique(my_pipeSummary$Arm),
-                       selected = NULL, multiple = T),
-           selectInput("filter_lineage",
-                       label = "Main Lineage",
-                       choices = unique(my_pipeSummary$main_lineage),
-                       selected = NULL, multiple = T)
+           checkboxGroupInput("breakdown_vars", 
+                              label = "Column Options",
+                              choices = c("Arm" = "Arm", "Lineage" = "main_lineage"),
+                              selected = NULL)
     ),
     
     column(width = 8,
@@ -188,17 +184,11 @@ server <- function(input, output, session) {
       df <- df %>% filter(Week %in% input$filter_week)
     if (!is.null(input$filter_outcome))
       df <- df %>% filter(Outcome %in% input$filter_outcome)
-    if (!is.null(input$filter_arm))
-      df <- df %>% filter(Arm %in% input$filter_arm)
-    if (!is.null(input$filter_lineage))
-      df <- df %>% filter(main_lineage %in% input$filter_lineage)
     
     # Group only if a filter is provided for Arm and Lineage
     grouping_vars <- c("Week", "Outcome")
-    if (length(input$filter_arm) > 0)
-      grouping_vars <- c(grouping_vars, "Arm")
-    if (length(input$main_lineage) > 0)
-      grouping_vars <- c(grouping_vars, "main_lineage")
+    if (length(input$breakdown_vars) > 0)
+      grouping_vars <- c(grouping_vars, input$breakdown_vars)
     
     df %>%
       group_by(across(all_of(grouping_vars))) %>%
