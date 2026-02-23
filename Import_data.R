@@ -290,6 +290,11 @@ my_pipeSummary <- All_pipeSummary %>%
   filter(!SampleID2 %in% c("Run1_W0_12024", "Run3_W0_12029", "Run1_W0_12043", "Run1_W0_12082", "Run2_W2_13016", "Run1_W0_13026", "Run3_W0_13051", "Run2.5_W0_13051", "Run2_W0_13094", "Run1_W0_14051", "Run1_W0_14136", "Run1_W0_15072", "Run2_W0_15083", "Run2_W2_11058", "Run3_W2_12008", "Run2_W2_12010", "Run3_W2_12012", "Run3_W2_12029", "Run2_W2_12032", "Run3_W2_12043", "Run3_W2_13026_A","Run3_W2_13026_B", "Run3_W2_13045", "Run2_W2_14113", "Run2_W2_14136", "Run3_W2_15017", "Run2_W2_15029", "Run2_W2_15065", "Run2_W2_15089", "Run2_W2_12007", "Run4_W2_12008", "Run4_W2_12012", "Run4_W2_12019", "Run3_W2_12020", "Run3_W2_12025", "Run2_W2_12028", "Run4_W2_12029", "Run4_W2_12052", "Run3_W2_13001", "Run4_W0_13001", "Run4_W2_13026", "Run4_W2_13051", "Run4_W2_14025", "Run4_W2_14051", "Run4_W2_14136")) %>% 
   mutate(Outcome = ifelse(Outcome == "Prob Relapse", "Relapse", Outcome))
 
+# 2/23/26: Remove the cousins! (I know they would still be okay if comparing general sputum to something else)
+my_pipeSummary <- my_pipeSummary %>%
+  filter(!Patient %in% c("P_13001", "P_13026"))
+
+
 # Know broth is good
 BrothSampleList <- my_pipeSummary %>% 
   filter(str_detect(SampleID, "Broth")) %>%
