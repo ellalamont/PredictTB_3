@@ -305,7 +305,7 @@ BrothSampleList <- my_pipeSummary %>%
 GoodSampleList60 <- my_pipeSummary %>%
   filter(Txn_Coverage_f >= 60) %>% 
   pull(SampleID2)
-SputumSampleList60 <- GoodSampleList60[grep("W", GoodSampleList60)] # 59 as of Run4
+SputumSampleList60 <- GoodSampleList60[grep("W", GoodSampleList60)] # 57 as of Run4 cousins removed
 GoodSamples60_pipeSummary <- my_pipeSummary %>% 
   filter(SampleID2 %in% GoodSampleList60) 
 GoodSamples60_tpmf <- All_tpm_f %>% dplyr::select(all_of(GoodSampleList60))
