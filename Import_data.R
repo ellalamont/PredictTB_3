@@ -294,6 +294,9 @@ my_pipeSummary <- All_pipeSummary %>%
 my_pipeSummary <- my_pipeSummary %>%
   filter(!Patient %in% c("P_13001", "P_13026"))
 
+# 2/23/26: Remove the failures for now (P_12025)
+my_pipeSummary <- my_pipeSummary %>%
+  filter(!(Outcome %in% "Failure")) # Had to do this a little weird to keep the NAs
 
 # Know broth is good
 BrothSampleList <- my_pipeSummary %>% 
