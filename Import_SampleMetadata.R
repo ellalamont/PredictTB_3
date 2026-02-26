@@ -10,7 +10,7 @@ library(readxl)
 
 # Import the first data specific to the samples we have
 Sample_list <- read_excel("Data/Sample_Metadata/Predict TRIzol sutum sample list_UW.xlsx")
-Sample_list <- Sample_list %>% select(`Patient ID`, Visit, `Aliquot Number`, Box, Position, Comments)
+Sample_list <- Sample_list %>% dplyr::select(`Patient ID`, Visit, `Aliquot Number`, Box, Position, Comments)
 names(Sample_list)[names(Sample_list) == "Patient ID"] <- "PatientID"
 names(Sample_list)[names(Sample_list) == "Aliquot Number"] <- "AliquotNumber"
 
@@ -72,7 +72,7 @@ Exp_metadata_3 <- Exp_metadata_3 %>% mutate(Patient = paste0("P_", SUBJID)) # 10
 ###########################################################
 ##################### SUBSET COLUMNS ######################
 
-my_metadata <- Exp_metadata_3 %>% select(outcome, arm, Visit, Age, SEX, TBprev, BMI, Weight, CurrentSmoker, PrevSmoker, SmokeDuration, TTD, XpertCT_wk0, Patient, main_lineage, sub_lineage) %>% rename(Arm = arm)
+my_metadata <- Exp_metadata_3 %>% dplyr::select(outcome, arm, Visit, Age, SEX, TBprev, BMI, Weight, CurrentSmoker, PrevSmoker, SmokeDuration, TTD, XpertCT_wk0, Patient, main_lineage, sub_lineage) %>% rename(Arm = arm)
 
 
 ###########################################################

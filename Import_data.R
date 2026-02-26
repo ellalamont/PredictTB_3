@@ -271,10 +271,9 @@ All_pipeSummary <- All_pipeSummary %>% mutate(Txn_Coverage_f = round(AtLeast.10.
 ###########################################################
 #################### ADD ARM INFORMATION ##################
 # 12/15/25
-
 source("Import_SampleMetadata.R")
 
-All_pipeSummary <- All_pipeSummary %>% select(-Arm) %>%
+All_pipeSummary <- All_pipeSummary %>% dplyr::select(-Arm) %>%
   left_join(my_metadata %>% 
               filter(Visit == "Day 0") %>% 
               distinct(Patient, .keep_all = TRUE), 
@@ -358,16 +357,16 @@ my_pipeSummary %>%
 ##################### EXPORT TPM INFO #####################
 # 1/29/26 for Jason Yang
 
-GoodSputum60_tpmf <- GoodSamples60_tpmf %>% select(contains("W"))
+GoodSputum60_tpmf <- GoodSamples60_tpmf %>% dplyr::select(contains("W"))
 GoodSputum60_pipeSummary <- GoodSamples60_pipeSummary %>% filter(SampleID2 %in% colnames(GoodSputum60_tpmf))
 
 # Clean up the names
 names(GoodSputum60_tpmf) <- sub("^Run[0-9]+_", "", names(GoodSputum60_tpmf))
 GoodSputum60_pipeSummary$SampleID <- gsub(pattern = "_S[0-9]+$", replacement = "", x = GoodSputum60_pipeSummary$SampleID)
-GoodSputum60_Metadata <- GoodSputum60_pipeSummary %>% select(SampleID, Week, Patient, Outcome, Type2, Arm, main_lineage)
+GoodSputum60_Metadata <- GoodSputum60_pipeSummary %>% dplyr::select(SampleID, Week, Patient, Outcome, Type2, Arm, main_lineage)
 
 # Remove the failure sample (12025) and the cousin relapse (13001, 13026)
-GoodSputum60_tpmf <- GoodSputum60_tpmf %>% select(-any_of(c("W0_12025", "W0_13001", "W2_13001", "W0_13026", "W2_13026")))
+GoodSputum60_tpmf <- GoodSputum60_tpmf %>% dplyr::select(-any_of(c("W0_12025", "W0_13001", "W2_13001", "W0_13026", "W2_13026")))
 GoodSputum60_Metadata <- GoodSputum60_Metadata %>% filter(!SampleID %in% c("W0_12025", "W0_13001", "W2_13001", "W0_13026", "W2_13026"))
 
 # Check the tpm and metadata have the same samples
@@ -379,14 +378,14 @@ stopifnot(setequal(GoodSputum60_Metadata$SampleID, colnames(GoodSputum60_tpmf)))
 
 
 # 2/3/26 For Evan/Howard: Want All the W0
-W0_tpmf <- All_tpm_f %>% select(any_of(my_pipeSummary$SampleID2)) %>%
-  select(contains("W0"))
+W0_tpmf <- All_tpm_f %>% dplyr::select(any_of(my_pipeSummary$SampleID2)) %>%
+  dplyr::select(contains("W0"))
 W0_pipeSummary <- my_pipeSummary %>% filter(SampleID2 %in% colnames(W0_tpmf))
 
 # Clean up the names
 names(W0_tpmf) <- sub("^Run[0-9]+_", "", names(W0_tpmf))
 W0_pipeSummary$SampleID <- gsub(pattern = "_S[0-9]+$", replacement = "", x = W0_pipeSummary$SampleID)
-W0_Metadata <- W0_pipeSummary %>% select(SampleID, Week, Patient, Outcome, Arm, main_lineage)
+W0_Metadata <- W0_pipeSummary %>% dplyr::select(SampleID, Week, Patient, Outcome, Arm, main_lineage)
 # Check the tpm and metadata have the same samples
 stopifnot(setequal(W0_Metadata$SampleID, colnames(W0_tpmf)))
 
