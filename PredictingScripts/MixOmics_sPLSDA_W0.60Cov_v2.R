@@ -1,4 +1,5 @@
 # MixOmics sparse PLS-DA W0 samples only
+# DIFFERENT SET SEED (Why it's a second version)
 # E. Lamont
 # 2/25/26
 
@@ -36,7 +37,7 @@ summary(myY)
 ###########################################################
 ############ SEPARATE TESTING AND TRAINING SETS ###########
 
-set.seed(23) # 23
+set.seed(666)
 train <- sample(1:nrow(myX), 30) # randomly select 30 samples in training
 test <- setdiff(1:nrow(myX), train) # rest is part of the test set
 
@@ -46,6 +47,9 @@ myX.test <- myX[test,]
 myY.train <- myY[train] # 7 relapses
 myY.test <- myY[test] # 4 relapses, 9 cures
 myY.test
+
+
+
 
 ###########################################################
 ############# INITIAL sPLS-DA ON TRAINING SET #############
@@ -62,7 +66,6 @@ train_PLSDA_1 <- plotIndiv(train.splsda , comp = 1:2,
                            ellipse = TRUE, # include 95% confidence ellipse for each class
                            legend = TRUE, 
                            title = 'W0 training set PLSDA with confidence ellipses')
-train_PLSDA_1$graph
 # ggsave(train_PLSDA_1$graph,
 #        file = paste0("PLSDA1_W0.60Cov_TrainSet_v1.pdf"),
 #        path = "Figures/PredictiveModeling/Mixomics_PLSDA/W0_60Cov",
@@ -72,9 +75,9 @@ train_PLSDA_1$graph
 background = background.predict(train.splsda, comp.predicted=2, dist = "max.dist")
 # plot the samples projected onto the first two components of the PLS-DA subspace
 train_PLSDA_2 <- plotIndiv(train.splsda, comp = 1:2,
-                     group = myY.train, ind.names = FALSE, # colour points by class
-                     background = background, # include prediction background for each class
-                     legend = TRUE, title = "W0 training set PLSDA with prediction background")
+                           group = myY.train, ind.names = FALSE, # colour points by class
+                           background = background, # include prediction background for each class
+                           legend = TRUE, title = "W0 training set PLSDA with prediction background")
 # ggsave(train_PLSDA_2$graph,
 #        file = paste0("PLSDA2_W0.60Cov_TrainSet_v1.pdf"),
 #        path = "Figures/PredictiveModeling/Mixomics_PLSDA/W0_60Cov",
@@ -98,9 +101,9 @@ plot(perf.splsda.train, col = color.mixo(5:7), sd = TRUE,
 # BER = Balanced error rate. It's really high! I think this is because it is predicting the cures well but not predicting the relapses so well?
 
 perf.splsda.train$choice.ncomp # what is the optimal value of components according to perf()
-# max.dist centroids.dist mahalanobis.dist
-# overall        8              4                4
-# BER            8              4                4
+#         max.dist centroids.dist mahalanobis.dist
+# overall        1              1                1
+# BER            1              1                1
 
 
 ## keepX: number of variables ##
@@ -109,41 +112,47 @@ perf.splsda.train$choice.ncomp # what is the optimal value of components accordi
 list.keepX <- c(1:10,  seq(20, 300, 10))
 
 # undergo the tuning process to determine the optimal number of variables
-tune.splsda.train <- tune.splsda(myX.train, myY.train, ncomp = 8, # calculate for first 8 components
+tune.splsda.train <- tune.splsda(myX.train, myY.train, ncomp = 2, # calculate for first ## components
                                  validation = 'Mfold',
                                  folds = 5, nrepeat = 50, # use repeated cross-validation
                                  dist = 'max.dist', # use max.dist measure
                                  measure = "BER", # use balanced error rate of dist measure
                                  test.keepX = list.keepX)
 
-plot(tune.splsda.train, col = color.jet(3)) # plot output of variable number tuning
+plot(tune.splsda.train, col = color.jet(2)) # plot output of variable number tuning
 # Each colored line is a BER (none are below 0.45!). SD is based on repeated cross validation folds.
 # As sPLS-DA is an iterative algorithm, values represented for a given component (e.g. comp 1 to 2) include the optimal keepX value chosen for the previous component (comp 1).
 # 1-6 looks the best...
 
 tune.splsda.train$choice.ncomp$ncomp # what is the optimal value of components according to tune.splsda
-# [1] 4
-# Why not 6??
+# [1] 1
 
 tune.splsda.train$choice.keepX # what are the optimal values of variables according to tune.splsda()
-# comp1 comp2 comp3 comp4 comp5 comp6 comp7 comp8 
-# 290     2   270   240    80   110    30     1 
+# comp1 comp2 
+# 9   210 
 # I think these are genes being used?
 
 # I guess I'll just use what it tells me...
 optimal.ncomp.train <- tune.splsda.train$choice.ncomp$ncomp 
-# 4
+# 1
 optimal.keepX.train <- tune.splsda.train$choice.keepX[1:optimal.ncomp.train]
-# comp1 comp2 comp3 comp4 
-# 290     2   270   240 
+# comp1 
+# 9 
+
+# Doesn't work when It's 1, has to at least be two
+optimal.ncomp.train <- 2
+# 1
+optimal.keepX.train <- tune.splsda.train$choice.keepX[1:optimal.ncomp.train]
+# comp1 comp2 
+# 9   210
 
 ###########################################################
 ############## FINAL sPLS-DA ON TRAINING SET ##############
 
 # form final model with optimised values for component and variable count
 final.splsda.train <- splsda(myX.train, myY.train, 
-                       ncomp = optimal.ncomp.train, 
-                       keepX = optimal.keepX.train)
+                             ncomp = optimal.ncomp.train, 
+                             keepX = optimal.keepX.train)
 
 ###########################################################
 ########### PLOT FINAL sPLS-DA ON TRAINING SET ############
@@ -162,10 +171,10 @@ sPLSDA_FinalModel_Comp12 <- plotIndiv(final.splsda.train , comp = c(1,2),
 background = background.predict(final.splsda.train, comp.predicted=2, dist = "max.dist")
 # plot the samples projected onto the first two components of the PLS-DA subspace
 sPLSDA_FinalModel_Comp12_v2 <- plotIndiv(final.splsda.train , comp = c(1,2),
-                                      group = myY.train, ind.names = F, 
-                                      background = background,
-                                      legend = TRUE,
-                                      title = 'W0 Final sPLSDA comp 1&2')
+                                         group = myY.train, ind.names = F, 
+                                         background = background,
+                                         legend = TRUE,
+                                         title = 'W0 Final sPLSDA comp 1&2')
 # ggsave(sPLSDA_FinalModel_Comp12_v2$graph,
 #        file = paste0("sPLSDA_FinalModel_Comp12_W0.60Cov_TrainSet_v2.pdf"),
 #        path = "Figures/PredictiveModeling/Mixomics_PLSDA/W0_60Cov",
@@ -175,17 +184,17 @@ sPLSDA_FinalModel_Comp12_v2 <- plotIndiv(final.splsda.train , comp = c(1,2),
 ###### VARIABLE PLOTS FROM FINAL sPLS-DA ON TRAINING SET ######
 
 # The stability of a given feature is defined as the proportion of cross validation folds (across repeats) where it was selected for to be used for a given component. Those with the highest stability are likely to be much more “important” for a given component.
-View(perf.splsda.train$features$stable) # Extract stability values
+# View(perf.splsda.train$features$stable) # Extract stability values
 # hmmm everything is 1....
 
 # form new perf() object which utilises the final model
 perf.final.splsda.train <- perf(final.splsda.train, 
-                          folds = 3, nrepeat = 50, # use repeated cross-validation
-                          validation = "Mfold", dist = "max.dist",  # use max.dist measure
-                          progressBar = FALSE)
+                                folds = 3, nrepeat = 50, # use repeated cross-validation
+                                validation = "Mfold", dist = "max.dist",  # use max.dist measure
+                                progressBar = FALSE)
 
 # plot the stability of each feature for the first three components, 'h' type refers to histogram
-par(mfrow=c(1,3))
+# par(mfrow=c(1,3))
 plot(perf.final.splsda.train$features$stable[[1]], type = 'h', 
      ylab = 'Stability', 
      xlab = 'Features', 
@@ -221,7 +230,7 @@ predict.splsda.Mahalanobis <- predict(object = final.splsda.train,
                                       newdata = myX.test,
                                       dist = "mahalanobis.dist",
                                       type = "prob")
-str(predict.splsda.Mahalanobis)
+# str(predict.splsda.Mahalanobis)
 levels(myY.test)
 predict.splsda.Mahalanobis$predict
 scores_Comp1 <- predict.splsda.Mahalanobis$predict[, "W0 sputum (relapse)", 1]
@@ -304,9 +313,9 @@ train_df <- data.frame(Dim1 = train_coords[, 1],
 pred_test <- predict(final.splsda.train, newdata = myX.test, type = "variates")
 
 predict.splsda.Mahalanobis_variates <- predict(object = final.splsda.train, 
-                                      newdata = myX.test,
-                                      dist = "mahalanobis.dist",
-                                      type = "variates")
+                                               newdata = myX.test,
+                                               dist = "mahalanobis.dist",
+                                               type = "variates")
 
 # Extract components 1 & 2
 test_coords <- predict.splsda.Mahalanobis_variates$variates[, 1:2]
@@ -322,7 +331,7 @@ plot_df <- rbind(train_df, test_df) %>%
                            Set == "Test" & Group == "W0 sputum (relapse)" ~ 24),
          Fill = case_when(Set == "Train" ~ NA_character_,  # hollow
                           Set == "Test" ~ Group # filled by class
-    ))
+         ))
 # Make Fill a factor for scale_fill_manual
 plot_df$Fill <- factor(plot_df$Fill, levels = c("W0 sputum (cure)", "W0 sputum (relapse)"))
 
@@ -362,13 +371,3 @@ Probability_Val_plot <- ggplot(validation_plot_df, aes(x = True_Outcome, y = Rel
        title = "MixOmics") +
   theme_bw()
 Probability_Val_plot
-
-
-
-
-
-
-
-
-
-

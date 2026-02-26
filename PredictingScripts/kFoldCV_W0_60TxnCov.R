@@ -20,10 +20,10 @@ W0SputumSamples60_pipeSummary <- GoodSamples60_pipeSummary %>%
   filter(Type == "Week 0 sputum") %>%
   filter(Outcome != "Failure")
 
-P_metadata <- W0SputumSamples60_pipeSummary %>% select(SampleID2, Outcome)
+P_metadata <- W0SputumSamples60_pipeSummary %>% dplyr::select(SampleID2, Outcome)
 P_metadata$Outcome <- factor(P_metadata$Outcome)
 
-P_TPM <- GoodSamples60_tpmf %>% select(all_of(W0SputumSamples60_pipeSummary$SampleID2))
+P_TPM <- GoodSamples60_tpmf %>% dplyr::select(all_of(W0SputumSamples60_pipeSummary$SampleID2))
 
 # Put everything in one dataframe
 P_TPM_t <- P_TPM %>% 
@@ -31,7 +31,7 @@ P_TPM_t <- P_TPM %>%
   as.data.frame() %>%
   rownames_to_column("SampleID2")
 my_df <- inner_join(P_metadata, P_TPM_t, by = "SampleID2")
-my_df2 <- my_df %>% select(-SampleID2)
+my_df2 <- my_df %>% dplyr::select(-SampleID2)
 
 # Remove na
 my_df2 <- na.omit(my_df2) # Didn't change anything
