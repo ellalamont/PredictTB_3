@@ -7,7 +7,12 @@
 # https://mixomics.org/case-studies/splsda-srbct-case-study-2/
 # https://mixomics.org/methods/spls-da/
 
+source("Import_data.R")
 
+# if (!requireNamespace("BiocManager", quietly = TRUE))
+#   install.packages("BiocManager")
+# BiocManager::install("mixOmics")
+library(mixOmics)
 
 ###########################################################
 ####################### PROCESS DATA ######################
@@ -36,16 +41,35 @@ summary(myY)
 ###########################################################
 ############ SEPARATE TESTING AND TRAINING SETS ###########
 
-set.seed(23) # 23
-train <- sample(1:nrow(myX), 30) # randomly select 30 samples in training
-test <- setdiff(1:nrow(myX), train) # rest is part of the test set
+# set.seed(23) # 23
+# train <- sample(1:nrow(myX), 30) # randomly select 30 samples in training
+# test <- setdiff(1:nrow(myX), train) # rest is part of the test set
+# 
+# # store matrices into training and test set:
+# myX.train <- myX[train, ]
+# myX.test <- myX[test,]
+# myY.train <- myY[train] # 7 relapses
+# myY.test <- myY[test] # 4 relapses, 9 cures
+# myY.test
 
-# store matrices into training and test set:
+# Make sure they are statified evenly?
+set.seed(23)
+relapse_idx <- which(myY == "W0 sputum (relapse)")
+cure_idx    <- which(myY == "W0 sputum (cure)")
+set.seed(23)
+train_relapse <- sample(relapse_idx, round(0.7 * length(relapse_idx)))
+train_cure    <- sample(cure_idx, round(0.7 * length(cure_idx)))
+
+train <- c(train_relapse, train_cure)
+test  <- setdiff(1:length(myY), train)
+
 myX.train <- myX[train, ]
-myX.test <- myX[test,]
-myY.train <- myY[train] # 7 relapses
-myY.test <- myY[test] # 4 relapses, 9 cures
+myX.test  <- myX[test,]
+
+myY.train <- myY[train]
+myY.test  <- myY[test]
 myY.test
+
 
 ###########################################################
 ############# INITIAL sPLS-DA ON TRAINING SET #############
@@ -99,8 +123,8 @@ plot(perf.splsda.train, col = color.mixo(5:7), sd = TRUE,
 
 perf.splsda.train$choice.ncomp # what is the optimal value of components according to perf()
 # max.dist centroids.dist mahalanobis.dist
-# overall        8              4                4
-# BER            8              4                4
+# overall        1              1                1
+# BER            1              1                1
 
 
 ## keepX: number of variables ##
@@ -109,33 +133,40 @@ perf.splsda.train$choice.ncomp # what is the optimal value of components accordi
 list.keepX <- c(1:10,  seq(20, 300, 10))
 
 # undergo the tuning process to determine the optimal number of variables
-tune.splsda.train <- tune.splsda(myX.train, myY.train, ncomp = 8, # calculate for first 8 components
+tune.splsda.train <- tune.splsda(myX.train, myY.train, ncomp = 2, # calculate for first 2 components
                                  validation = 'Mfold',
                                  folds = 5, nrepeat = 50, # use repeated cross-validation
                                  dist = 'max.dist', # use max.dist measure
                                  measure = "BER", # use balanced error rate of dist measure
                                  test.keepX = list.keepX)
 
-plot(tune.splsda.train, col = color.jet(3)) # plot output of variable number tuning
+plot(tune.splsda.train, col = color.jet(2)) # plot output of variable number tuning
 # Each colored line is a BER (none are below 0.45!). SD is based on repeated cross validation folds.
 # As sPLS-DA is an iterative algorithm, values represented for a given component (e.g. comp 1 to 2) include the optimal keepX value chosen for the previous component (comp 1).
 # 1-6 looks the best...
 
 tune.splsda.train$choice.ncomp$ncomp # what is the optimal value of components according to tune.splsda
-# [1] 4
-# Why not 6??
+# [1] 1
+
 
 tune.splsda.train$choice.keepX # what are the optimal values of variables according to tune.splsda()
-# comp1 comp2 comp3 comp4 comp5 comp6 comp7 comp8 
-# 290     2   270   240    80   110    30     1 
+# comp1 comp2 
+# 280    80 
 # I think these are genes being used?
 
 # I guess I'll just use what it tells me...
 optimal.ncomp.train <- tune.splsda.train$choice.ncomp$ncomp 
-# 4
+# 1
 optimal.keepX.train <- tune.splsda.train$choice.keepX[1:optimal.ncomp.train]
 # comp1 comp2 comp3 comp4 
 # 290     2   270   240 
+
+# Doesn't work when It's 1, has to at least be two
+optimal.ncomp.train <- 2
+optimal.keepX.train <- tune.splsda.train$choice.keepX[1:optimal.ncomp.train]
+# comp1 comp2 
+# 280    80 
+
 
 ###########################################################
 ############## FINAL sPLS-DA ON TRAINING SET ##############
@@ -175,7 +206,7 @@ sPLSDA_FinalModel_Comp12_v2 <- plotIndiv(final.splsda.train , comp = c(1,2),
 ###### VARIABLE PLOTS FROM FINAL sPLS-DA ON TRAINING SET ######
 
 # The stability of a given feature is defined as the proportion of cross validation folds (across repeats) where it was selected for to be used for a given component. Those with the highest stability are likely to be much more “important” for a given component.
-View(perf.splsda.train$features$stable) # Extract stability values
+# View(perf.splsda.train$features$stable) # Extract stability values
 # hmmm everything is 1....
 
 # form new perf() object which utilises the final model
@@ -185,7 +216,7 @@ perf.final.splsda.train <- perf(final.splsda.train,
                           progressBar = FALSE)
 
 # plot the stability of each feature for the first three components, 'h' type refers to histogram
-par(mfrow=c(1,3))
+# par(mfrow=c(1,3))
 plot(perf.final.splsda.train$features$stable[[1]], type = 'h', 
      ylab = 'Stability', 
      xlab = 'Features', 
@@ -221,8 +252,7 @@ predict.splsda.Mahalanobis <- predict(object = final.splsda.train,
                                       newdata = myX.test,
                                       dist = "mahalanobis.dist",
                                       type = "prob")
-str(predict.splsda.Mahalanobis)
-levels(myY.test)
+# str(predict.splsda.Mahalanobis)
 predict.splsda.Mahalanobis$predict
 scores_Comp1 <- predict.splsda.Mahalanobis$predict[, "W0 sputum (relapse)", 1]
 tapply(scores_Comp1, myY.test, mean)
