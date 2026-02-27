@@ -16,13 +16,12 @@ library(randomForest)
 
 # Keep only W0 sputum
 W0SputumSamples60_pipeSummary <- GoodSamples60_pipeSummary %>% 
-  filter(Type == "Week 0 sputum") %>%
-  filter(Outcome != "Failure")
+  filter(Type == "Week 0 sputum") 
 
-P_metadata <- W0SputumSamples60_pipeSummary %>% select(SampleID2, Outcome)
+P_metadata <- W0SputumSamples60_pipeSummary %>% dplyr::select(SampleID2, Outcome)
 P_metadata$Outcome <- factor(P_metadata$Outcome)
 
-P_TPM <- GoodSamples60_tpmf %>% select(all_of(W0SputumSamples60_pipeSummary$SampleID2))
+P_TPM <- GoodSamples60_tpmf %>% dplyr::select(all_of(W0SputumSamples60_pipeSummary$SampleID2))
 
 # Put everything in one dataframe
 P_TPM_t <- P_TPM %>% 
@@ -30,7 +29,7 @@ P_TPM_t <- P_TPM %>%
   as.data.frame() %>%
   rownames_to_column("SampleID2")
 my_df <- inner_join(P_metadata, P_TPM_t, by = "SampleID2")
-my_df2 <- my_df %>% select(-SampleID2)
+my_df2 <- my_df %>% dplyr::select(-SampleID2)
 
 # Remove na
 my_df2 <- na.omit(my_df2) # Didn't change anything
@@ -39,8 +38,8 @@ my_df2 <- na.omit(my_df2) # Didn't change anything
 my_df2$Outcome <- factor(my_df2$Outcome, levels = c("Relapse", "Cure"))
 
 # Remove genes with near zero variance
-NearZeroGenes <- nearZeroVar(my_df2 %>% select(-Outcome))
-my_df3 <- my_df2 %>% select(-NearZeroGenes) # Now 4025 genes
+NearZeroGenes <- nearZeroVar(my_df2 %>% dplyr::select(-Outcome))
+my_df3 <- my_df2 %>% dplyr::select(-NearZeroGenes) # Now 4025 genes
 
 # Saving for trying in https://genesrf.iib.uam.es/
 # my_df_tosave <- my_df %>% select(-NearZeroGenes) %>% t()
@@ -66,13 +65,11 @@ validation_data$Outcome <- factor(validation_data$Outcome, levels = c("Relapse",
 # Selecting the optimal number (mtry) of predictor variables using caret
 
 set.seed(23)
-RF_model <- train(Outcome ~ .,
+RF_model <- caret::train(Outcome ~ .,
                   data = train_data,
                   method = "rf",
                   trControl = trainControl("cv", number = 10),
                   importance = T)
-# Warning in preProcess.default(thresh = 0.95, k = 5, freqCut = 19, uniqueCut = 10,  :
-# These variables have zero variances: Rv2395A, Rv2561, Rv2562, Rv3098A, Rv3098c
 # Warning message:
 # In nominalTrainWorkflow(x = x, y = y, wts = weights, info = trainInfo,  :
 #                           There were missing values in resampled performance measures.
@@ -107,4 +104,10 @@ varImpPlot(RF_model$finalModel, type = 2)
 
 # Show importance of variables in percentage
 varImp(RF_model)
+
+
+
+
+
+
 

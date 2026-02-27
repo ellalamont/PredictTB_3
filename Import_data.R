@@ -342,7 +342,7 @@ my_pipeSummary %>%
   filter(!is.na(Patient)) %>% # 123 total sputum samples
   # filter(N_Genomic >= 1000000) %>% 
   filter(Txn_Coverage_f >=60) %>%
-  group_by(Week, Outcome, Arm, main_lineage) %>%
+  group_by(Week, Outcome) %>%
   summarize(N_samples = n())
 
 

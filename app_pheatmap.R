@@ -5,7 +5,8 @@ library(shiny)
 # dev.off() # Sometimes need this to get the shiny to show the pheatmap?
 
 
-source("Import_data.R") 
+source("Import_data.R")
+source("Import_GeneSets.R")
 
 # Plot basics
 my_plot_themes <- theme_bw() +
@@ -28,12 +29,12 @@ my_annotation_colors <- list(
             "W0 sputum (failure)" = "#3c8b22")
 )
 
-my_tpm <- GoodSamples60_tpmf %>% select(-contains("THP1"))
+my_tpm <- GoodSamples60_tpmf %>% dplyr::select(-contains("THP1"))
 
 my_pipeSummary <- GoodSamples60_pipeSummary %>%
   # filter(SampleID2 %in% colnames(testing)) %>%
   filter(Type2 != "THP1 spiked") %>%
-  select(SampleID2, Type2) %>%
+  dplyr::select(SampleID2, Type2) %>%
   column_to_rownames("SampleID2")
 
 # Reorder annotation rows to match columns of tpm file
