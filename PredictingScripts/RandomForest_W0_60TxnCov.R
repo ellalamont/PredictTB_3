@@ -3,9 +3,8 @@
 
 # https://www.sthda.com/english/articles/35-statistical-machine-learning-essentials/140-bagging-and-random-forest-essentials/
 # https://www.usu.edu/math/jrstevens/stat5570/3.4.forests.pdf
-# https://genesrf.iib.uam.es/
-# https://www.rdocumentation.org/packages/varSelRF/versions/0.7-8/topics/varSelRF
 
+# https://github.com/parkyed/SepsisClassifiers/blob/main/random_forest_models.R
 
 library(caret)
 # install.packages("randomForest")

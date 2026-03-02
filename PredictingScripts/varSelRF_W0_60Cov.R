@@ -40,7 +40,4 @@ rfsel$selected.model
 rfsel$firstForest
 
 
-
-
-
-
+# Stopped here, not sure how to predict with this model
