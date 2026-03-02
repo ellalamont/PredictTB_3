@@ -16,7 +16,6 @@ my_plot_themes <- theme_bw() +
         axis.title.y = element_text(size=14),
         axis.text.y = element_text(size=14), 
         plot.subtitle = element_text(size=10), 
-        plot.margin = margin(10, 10, 10, 20),
         panel.background = element_rect(fill='transparent'),
         plot.background = element_rect(fill='transparent', color=NA),
         legend.background = element_rect(fill='transparent'),
@@ -165,11 +164,11 @@ make_volcano_function_ogP <- function(my_df, graph_title, DE_limit) {
   ## DE_limit can either be 1 or 2; log2fold change > abs(1) or abs(2)
   
   if (DE_limit == 1) {
-    my_DE_col <- "DE1_ogP"
-    my_DE_label <- "DE1_ogP_labels"
+    my_DE_col <- "DE1"
+    my_DE_label <- "DE1_labels"
   } else if (DE_limit == 2) {
-    my_DE_col <- "DE2_ogP"
-    my_DE_label <- "DE2_ogP_labels"
+    my_DE_col <- "DE2"
+    my_DE_label <- "DE2_labels"
   }
   
   my_volcano <- my_df %>%
@@ -206,25 +205,14 @@ single_plot <- make_volcano_function_ogP(list_dfs_f2[[2]], df_names[2], DE_limit
 single_plot
 
 
-# Loop for all the volcanos
-# my_path <- "Figures/Volcano_60TxnCov/Log2Fold2_AVG_PVALUE"
-# for (i in 1:length(list_dfs_f2)) { ## USING FILTERED DATA ##
-#   current_df_name <- df_names[i]
-#   filename <- paste0(current_df_name, "_f_AVG_PVALUE_Run1to3.pdf")
-#   my_plot <- make_volcano_function_ogP(list_dfs_f2[[i]], df_names[i], 2) ## USING FILTERED DATA ##
-#   ggsave(my_plot,
-#          file = filename,
-#          path = my_path,
-#          width = 7, height = 5, units = "in")
-# }
 
-# my_path <- "Figures/Volcano_60TxnCov/Log2Fold1_AVG_PVALUE"
-# for (i in 1:length(list_dfs_f2)) { ## USING FILTERED DATA ##
-#   current_df_name <- df_names[i]
-#   filename <- paste0(current_df_name, "_f_AVG_PVALUE_Run1to4.pdf")
-#   my_plot <- make_volcano_function_ogP(list_dfs_f2[[i]], df_names[i], 1) ## USING FILTERED DATA ##
-#   ggsave(my_plot,
-#          file = filename,
-#          path = my_path,
-#          width = 7, height = 5, units = "in")
-# }
+my_path <- "Figures/Volcano_60TxnCov/Log2Fold1_AVG_PVALUE"
+for (i in 1:length(list_dfs_f2)) { ## USING FILTERED DATA ##
+  current_df_name <- df_names[i]
+  filename <- paste0(current_df_name, "_f_AVG_PVALUE_Run1to4.pdf")
+  my_plot <- make_volcano_function_ogP(list_dfs_f2[[i]], df_names[i], 1) ## USING FILTERED DATA ##
+  ggsave(my_plot,
+         file = filename,
+         path = my_path,
+         width = 7, height = 5, units = "in")
+}
