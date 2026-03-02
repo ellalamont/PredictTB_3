@@ -2,6 +2,8 @@
 # E. Lamont
 # 1/8/26
 
+# Updated on 3/2/26 to run with the cousins removed
+
 # Look into ggbiplot for more PCA stuff??
 # https://cran.r-project.org/web/packages/ggbiplot/readme/README.html
 
@@ -44,7 +46,7 @@ my_fav_shapes <- c(`W0 sputum (cure)` = 21, `W0 sputum (relapse)` = 21, `Broth`=
 
 # Convert gene column to rownames
 my_tpm <- GoodSamples60_tpmf %>% # column_to_rownames(var = "X")
-  select(!contains("THP1")) # Remove the spiked samples
+  dplyr::select(!contains("THP1")) # Remove the spiked samples
 
 # Keep genes with >5 tpm (should be using counts!) in at least 50% of samples 
 # 1/16/26: Not doing this now but maybe should?? Doesn't really change what the graph looks like
@@ -63,9 +65,9 @@ my_PCA <- prcomp(my_tpm_t2, scale = TRUE)
 # See the % Variance explained
 summary(my_PCA)
 summary_PCA <- format(round(as.data.frame(summary(my_PCA)[["importance"]]['Proportion of Variance',]) * 100, digits = 1), nsmall = 1) # format and round used to control the digits after the decimal place
-summary_PCA[1,1] # PC1 explains 14.6% of variance
-summary_PCA[2,1] # PC2 explains 8% of variance
-summary_PCA[3,1] # PC3 explains 6.9% of variance
+summary_PCA[1,1] # PC1 explains 15.1% of variance
+summary_PCA[2,1] # PC2 explains 8.4% of variance
+summary_PCA[3,1] # PC3 explains 7.2% of variance
 
 # MAKE PCA PLOT with GGPLOT 
 my_PCA_df <- as.data.frame(my_PCA$x[, 1:3]) # Extract the first 3 PCs
@@ -116,7 +118,7 @@ PCA_fig2
 
 # Convert gene column to rownames
 my_tpm <- GoodSamples60_tpmf %>% # column_to_rownames(var = "X")
-  select(contains("W0")) # Only keep W0 samples
+  dplyr::select(contains("W0")) # Only keep W0 samples
 
 # Transform the data
 my_tpm_t <- as.data.frame(t(my_tpm))
@@ -130,9 +132,9 @@ my_PCA <- prcomp(my_tpm_t2, scale = TRUE)
 # See the % Variance explained
 summary(my_PCA)
 summary_PCA <- format(round(as.data.frame(summary(my_PCA)[["importance"]]['Proportion of Variance',]) * 100, digits = 1), nsmall = 1) # format and round used to control the digits after the decimal place
-summary_PCA[1,1] # PC1 explains 9.9% of variance
-summary_PCA[2,1] # PC2 explains 9.1% of variance
-summary_PCA[3,1] # PC3 explains 7.0% of variance
+summary_PCA[1,1] # PC1 explains 10.4% of variance
+summary_PCA[2,1] # PC2 explains 9.9% of variance
+summary_PCA[3,1] # PC3 explains 7.5% of variance
 
 # MAKE PCA PLOT with GGPLOT 
 my_PCA_df <- as.data.frame(my_PCA$x[, 1:3]) # Extract the first 3 PCs
@@ -145,7 +147,7 @@ PCA_fig <- my_PCA_df %>%
   # geom_text_repel(aes(label = Lineage), size = 2.5) + 
   scale_fill_manual(values = my_fav_colors) +  
   scale_shape_manual(values = my_fav_shapes) + 
-  geom_text_repel(aes(label = SampleID2), size= 2, box.padding = 0.4, segment.color = "grey", max.overlaps = Inf) + 
+  # geom_text_repel(aes(label = SampleID2), size= 2, box.padding = 0.4, segment.color = "grey", max.overlaps = Inf) + 
   labs(title = "PCA: >1M reads and >60% genes with at least 10 reads (Run1-4) W0 only",
        subtitle = "TPM filtered (Rv genes only) Numbers are % txn coverage",
        x = paste0("PC1: ", summary_PCA[1,1], "%"),
@@ -153,7 +155,7 @@ PCA_fig <- my_PCA_df %>%
   my_plot_themes
 PCA_fig
 # ggsave(PCA_fig,
-#        file = paste0("W0_GoodSamples_tpmf_txnCov60_v2.pdf"),
+#        file = paste0("W0_GoodSamples_tpmf_txnCov60_v1.pdf"),
 #        path = "Figures/PCA",
 #        width = 10, height = 6, units = "in")
 
@@ -166,7 +168,7 @@ PCA_fig
 
 # Convert gene column to rownames
 my_tpm <- GoodSamples60_tpmf %>% # column_to_rownames(var = "X")
-  select(contains("W2")) # Only keep W0 samples
+  dplyr::select(contains("W2")) # Only keep W0 samples
 
 # Transform the data
 my_tpm_t <- as.data.frame(t(my_tpm))
@@ -180,9 +182,9 @@ my_PCA <- prcomp(my_tpm_t2, scale = TRUE)
 # See the % Variance explained
 summary(my_PCA)
 summary_PCA <- format(round(as.data.frame(summary(my_PCA)[["importance"]]['Proportion of Variance',]) * 100, digits = 1), nsmall = 1) # format and round used to control the digits after the decimal place
-summary_PCA[1,1] # PC1 explains 15.1% of variance
-summary_PCA[2,1] # PC2 explains 13.6% of variance
-summary_PCA[3,1] # PC3 explains 11.3% of variance
+summary_PCA[1,1] # PC1 explains 16.0% of variance
+summary_PCA[2,1] # PC2 explains 14.4% of variance
+summary_PCA[3,1] # PC3 explains 12.0% of variance
 
 # MAKE PCA PLOT with GGPLOT 
 my_PCA_df <- as.data.frame(my_PCA$x[, 1:3]) # Extract the first 3 PCs
