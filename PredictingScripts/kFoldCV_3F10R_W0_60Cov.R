@@ -1,5 +1,6 @@
-# K-fold cross validation (with logistic regression)
-# 1/14/26
+# K-fold cross validation (with logistic regression) 3 fold 10 repeats
+# Data has been log2 transformed and scaled (I think)
+# 3/3/26
 
 # https://www.sthda.com/english/articles/38-regression-model-validation/157-cross-validation-essentials-in-r/
 # https://rpubs.com/uky994/1328850
@@ -15,83 +16,106 @@ library(pROC)
 ###########################################################
 ##################### ORGANIZE DATA #######################
 
-# Keep only W0 sputum
-W0SputumSamples60_pipeSummary <- GoodSamples60_pipeSummary %>% 
-  filter(Type == "Week 0 sputum") %>%
-  filter(Outcome != "Failure")
-
-P_metadata <- W0SputumSamples60_pipeSummary %>% dplyr::select(SampleID2, Outcome)
-P_metadata$Outcome <- factor(P_metadata$Outcome)
-
-P_TPM <- GoodSamples60_tpmf %>% dplyr::select(all_of(W0SputumSamples60_pipeSummary$SampleID2))
-
-# Put everything in one dataframe
-P_TPM_t <- P_TPM %>% 
+tpm_t <- GoodSamples60_tpmf %>% 
   t() %>%
   as.data.frame() %>%
   rownames_to_column("SampleID2")
-my_df <- inner_join(P_metadata, P_TPM_t, by = "SampleID2")
-my_df2 <- my_df %>% dplyr::select(-SampleID2)
 
-# Remove na
-my_df2 <- na.omit(my_df2) # Didn't change anything
+model_df <- GoodSamples60_pipeSummary %>% 
+  filter(Type == "Week 0 sputum") %>%
+  dplyr::select(SampleID2, Outcome) %>%
+  mutate(Outcome = factor(Outcome, levels = c("Relapse", "Cure"))) %>%
+  inner_join(tpm_t, by = "SampleID2") %>%
+  column_to_rownames("SampleID2") %>%
+  na.omit()
 
-# Outcome must be factor with "Relapse" first
-my_df2$Outcome <- factor(my_df2$Outcome, levels = c("Relapse", "Cure"))
-
+# Log2 transform
+model_df_log2 <- model_df %>%
+  mutate(across(where(is.numeric), ~ log2(.x + 1)))
 
 ###########################################################
-################ KEEP OUT A VALIDATION SET ################
-
+################# SEPARATE TRAIN AND TEST #################
+  
 # Separate training and testing sets
 set.seed(23)
-training_samples <- my_df2$Outcome %>% 
+trainIndexes <- model_df_log2$Outcome %>% 
   createDataPartition(p = 0.7, list = FALSE) # 0.7 gives the test data 3 relapses and the train data 9 relapses
-train_data  <- my_df2[training_samples, ]
-validation_data <- my_df2[-training_samples, ]
+train_df_log2  <- model_df_log2[trainIndexes, ]
+test_df_log2 <- model_df_log2[-trainIndexes, ]
 
-# Make sure that Relapse is the positive class for caret
-train_data$Outcome <- factor(train_data$Outcome, levels = c("Relapse", "Cure"))
-validation_data$Outcome <- factor(validation_data$Outcome, levels = c("Relapse", "Cure"))
+# Separate X and Y
+myX.train_log2 <- train_df_log2 %>% dplyr::select(-Outcome)
+myY.train_log2 <- train_df_log2$Outcome
+
+myX.test_log2  <- test_df_log2 %>% dplyr::select(-Outcome)
+myY.test_log2  <- test_df_log2$Outcome
+
+###########################################################
+######################### SCALE ###########################
+
+# Scaling needs to happen on the train set when separated, then use the same parameters on the test set, to prevent "leakage"
+
+# But glm scales automatically so don't need to scale here?
+
+# Remove near-zero variance genes
+nzv_Indexes <- caret::nearZeroVar(myX.train_log2) # Based only on the train set! 
+myX.train_log2_nzv <- myX.train_log2[, -nzv_Indexes]
+myX.test_log2_nzv  <- myX.test_log2[, -nzv_Indexes]
+
+# Scale the data
+myX.train_scaled <- scale(myX.train_log2_nzv) # Scale the train data first!
+# Scale the test data based on the attributes of the scaled train data
+myX.test_scaled <- scale(
+  myX.test_log2_nzv,
+  center = attr(myX.train_scaled, "scaled:center"), # column means
+  scale = attr(myX.train_scaled, "scaled:scale")) # column SDs
+
+
+
 
 ###########################################################
 ############### K-FOLD LOGISTIC REGRESSION ################
 # https://rpubs.com/uky994/1328850
+
 set.seed(23)
 
-# 10-fold cross-validation, repeated 3 times
-train_control <- trainControl(method = "repeatedcv", 
-                              number = 10, # Number of folds, not to high so there is a chance of relapse in each fold (Also Tried 5)
-                              repeats = 3, # Just picked something, may be too high (Also Tried 10)
-                              verboseIter = F, 
-                              savePredictions = "final", # caret will store predictions from the best tuned model only
-                              classProbs = T,  # Caret will produce class probabilities not just predicted classes (cure/relapse). Needed to compute ROC/AUC
-                              summaryFunction = twoClassSummary) # For binary classification. Means caret will compute ROC/AUC, sensitivity, specificity
+# 3-fold cross-validation, repeated 10 times
+train_control <- trainControl(
+  method = "repeatedcv", 
+  number = 3, # Number of folds,
+  repeats = 10, # Number of repeats
+  verboseIter = F, 
+  savePredictions = "final", # caret will store predictions from the best tuned model only
+  classProbs = T,  # Caret will produce class probabilities not just predicted classes (cure/relapse). Needed to compute ROC/AUC
+  summaryFunction = twoClassSummary) # For binary classification. Means caret will compute ROC/AUC, sensitivity, specificity
 
-# Use when setting alpha = 1 for lasso only. Not during this now, letting it pick it's fav alpha
-# lassoGrid <- expand.grid(alpha = 1, lambda = 10^seq(-3, 1, length = 100)) # A range of lambda values
+
+# For tuning alpha and lambda
+lassoGrid <- expand.grid(
+  # alpha = seq(0, 1, by = 0.1),
+  alpha = 1, # When I want it to be lasso only
+  lambda = 10^seq(-4, 1, length = 100))
 
 # Train the model
 set.seed(23)
-kfold_model <- train(Outcome ~ .,
-                     data = train_data,
+kfold_model <- train(x = myX.train_log2_nzv, y = myY.train_log2,
                      method = "glmnet",
                      metric = "ROC", # tells caret to optimize ROC during hyperparameter tuning
                      # tuneGrid = lassoGrid, Only if doing lasso
                      trControl = train_control,
-                     preProcess = c("center", "scale"),
-                     tuneLength = 50)
+                     standardize = T, # This is in glmnet, telling it to scale (I think)
+                     # preProcess = c("center", "scale"), # Not really sure if I need this for scaling or not.... If this is selected, the standardize has to be F or it won't work.
+                     # tuneLength = 50,
+                     tuneGrid = lassoGrid) # , # Only if doing lasso)
 
 # Warning message:
 # In lognet(x, is.sparse, y, weights, offset, alpha, nobs,  ... :
 # one multinomial or binomial class has fewer than 8  observations; dangerous ground
-# In nominalTrainWorkflow(x = x, y = y, wts = weights, info = trainInfo,  :
-# There were missing values in resampled performance measures.
 
 # Check the alpha and best lambda used
 kfold_model$bestTune
-# alpha    lambda
-# 2385 0.9632653 0.1425422
+# alpha      lambda
+# 35     1 0.005214008
 
 
 ###########################################################
@@ -104,8 +128,14 @@ coef_df <- coef(kfold_model$finalModel, s = kfold_model$bestTune$lambda) %>%
 coef_df <- coef_df[coef_df[, 1] != 0, , drop = FALSE]
 colnames(coef_df)[1] <- "V1"
 rownames(coef_df)
-# [1] "(Intercept)" "Rv0625c"     "Rv1031"      "Rv1249c"     "Rv2106"      "Rv2279"      "Rv2355"  
-# [8] "Rv2511"      "Rv2986c"     "Rv3472"    
+# [1] "(Intercept)" "Rv0440"      "Rv0614"      "Rv0733"      "Rv0887c"     "Rv1098c"    
+# [7] "Rv1264"      "Rv1430"      "Rv1437"      "Rv1457c"     "Rv1719"      "Rv2030c"    
+# [13] "Rv2356c"     "Rv2413c"     "Rv2463"      "Rv2465c"     "Rv2625c"     "Rv2649"     
+# [19] "Rv2730"      "Rv2892c"     "Rv2986c"     "Rv3326"      "Rv3569c"     "Rv3781"     
+# [25] "Rv3786c"    
+# Where is Rv0625c??
+
+
 
 # Plot the coefficients (it's backwards so negative is actually higher in relapse)
 coefficients_plot <- coef_df %>% 
@@ -114,11 +144,12 @@ coefficients_plot <- coef_df %>%
   ggplot(aes(x = reorder(rownames(.), V2), y = V2)) +
   geom_col() + 
   coord_flip() + 
-  labs(y = "Coefficient", x = "Gene", title = "10-fold 3-repeat CV logistic regression test set") + 
+  labs(y = "Coefficient", x = "Gene", title = "3-fold 10-repeat CV logistic regression test set") + 
   theme_bw()
+coefficients_plot
 # ggsave(coefficients_plot,
-#        file = paste0("10fold3repeatCV_LR_W0_60Cov_Coefficients.pdf"),
-#        path = "Figures/PredictiveModeling/kfold_LR",
+#        file = paste0("3fold10repeatCV_LR_W0_60Cov_Coefficients.pdf"),
+#        path = "Figures/PredictiveModeling/kfold_LR/W0_60Cov/3F10R",
 #        width = 6, height = 5, units = "in")
 
 ###########################################################
@@ -141,7 +172,7 @@ ggplot(kfold_model$pred, aes(x = obs, y = Relapse)) +
        y = "Predicted relapse probability",
        title = "k-fold logistic regression training set") +
   theme_bw()
-  
+
 # These are plotting all the repeats, just plot the average for each sample
 kfold_avg <- kfold_model$pred %>%
   group_by(rowIndex) %>%
@@ -149,7 +180,7 @@ kfold_avg <- kfold_model$pred %>%
     obs = first(obs),
     mean_Relapse = mean(Relapse)
   )
-  
+
 # Print the average ROC
 roc_kfold_avg <- roc(response = kfold_avg$obs,
                      predictor = kfold_avg$mean_Relapse)

@@ -1,6 +1,6 @@
 # Methods to separate the testing and training sets that will work with different models 
 
-
+library(caret)
 
 ###########################################################
 ##################### MIXOMICS METHOD #####################
