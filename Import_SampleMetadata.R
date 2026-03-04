@@ -48,11 +48,29 @@ subMIC_info$SUBJID <- gsub("-", "", subMIC_info$SUBJID)
 
 metadata_4 <- merge(metadata_3, subMIC_info, by = c("SUBJID"), all = TRUE)
 
+# Import new data list from Shawn (more complete)
+Extra_metadata_260226 <- read_excel("Data/Sample_Metadata/Predict UW set BL and outcome to EL 260226.xlsx")
+Extra_metadata_260226 <- Extra_metadata_260226 %>%
+  mutate(SUBJID = as.character(SUBJID)) %>%
+  mutate(SmokeDuration = as.numeric(SmokeDuration))
+any(duplicated(Extra_metadata_260226$SUBJID)) # FALSE, good
+
+# 3/4/26: Fill in the missing information
+shared_cols <- intersect(names(metadata_4), names(Extra_metadata_260226))
+shared_cols <- setdiff(shared_cols, "SUBJID")
+metadata_5 <- metadata_4 %>%
+  left_join(Extra_metadata_260226 %>% dplyr::select(all_of(c("SUBJID", shared_cols))),,
+    by = "SUBJID",
+    suffix = c("", ".extra")) %>%
+  mutate(across(all_of(shared_cols), ~ coalesce(.x, get(paste0(cur_column(), ".extra"))))) %>%
+  dplyr::select(-ends_with(".extra"))
+
+
 ###########################################################
 ##################### EXPERIMENTAL SET ####################
 # Want to look at the data that I understand and with the feasibility test set removed
 
-Exp_metadata <- metadata_4 # 1524 rows
+Exp_metadata <- metadata_5 # 1524 rows
 
 # Add a week column
 Exp_metadata$Week <- Exp_metadata$Visit
