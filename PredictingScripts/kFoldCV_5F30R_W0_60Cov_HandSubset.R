@@ -1,17 +1,32 @@
-# K-fold cross validation (with logistic regression) 3 fold 10 repeats
-# Data has been log2 transformed and scaled (I think)
-# 3/3/26
+# K-fold cross validation (with logistic regression)
+# 5-fold 30-repeats: Do 5-fold cross validation 30 different times, each time with new random fold splits
+# TPM
+# Choosing specific genes that have appeared in other models
+# 3/4/26
+
+
 
 # https://www.sthda.com/english/articles/38-regression-model-validation/157-cross-validation-essentials-in-r/
 # https://rpubs.com/uky994/1328850
 
 
-
 library(caret)
 library(glmnet)
 library(pROC)
+detach("package:CMA", unload = TRUE)
 
 # caret package (train function) handles the data splitting, resampling, model training, and performance evaluation 
+
+
+###########################################################
+############# SET FOLD AND REPEAT PARAMETERS ##############
+
+my_nfolds <- 5
+my_nrepeats <- 30
+
+my_folderPath <- "Figures/PredictiveModeling/kfold_LR/W0_60Cov/5F30R_Log2"
+my_figureTitle <- "5F30R LR Log2(TPM+1)"
+
 
 ###########################################################
 ##################### ORGANIZE DATA #######################
@@ -35,41 +50,94 @@ model_df_log2 <- model_df %>%
 
 ###########################################################
 ################# SEPARATE TRAIN AND TEST #################
-  
-# Separate training and testing sets
+
+# TPM Transformed Data
+set.seed(23)
+trainIndexes <- model_df$Outcome %>% 
+  createDataPartition(p = 0.7, list = FALSE) # 0.7 gives the test data 3 relapses and the train data 9 relapses
+train_df  <- model_df[trainIndexes, ]
+test_df <- model_df[-trainIndexes, ]
+# Separate X and Y
+myX.train <- train_df %>% dplyr::select(-Outcome)
+myY.train <- train_df$Outcome
+myX.test  <- test_df %>% dplyr::select(-Outcome)
+myY.test  <- test_df$Outcome
+
+# LOG2 Transformed Data
 set.seed(23)
 trainIndexes <- model_df_log2$Outcome %>% 
   createDataPartition(p = 0.7, list = FALSE) # 0.7 gives the test data 3 relapses and the train data 9 relapses
 train_df_log2  <- model_df_log2[trainIndexes, ]
 test_df_log2 <- model_df_log2[-trainIndexes, ]
-
 # Separate X and Y
 myX.train_log2 <- train_df_log2 %>% dplyr::select(-Outcome)
 myY.train_log2 <- train_df_log2$Outcome
-
 myX.test_log2  <- test_df_log2 %>% dplyr::select(-Outcome)
 myY.test_log2  <- test_df_log2$Outcome
 
 ###########################################################
-######################### SCALE ###########################
+############ REMOVE NEAR ZERO VARIANCE GENES ##############
 
+# TPM data
+nzv_Indexes <- caret::nearZeroVar(myX.train) # Based only on the train set! 
+myX.train_nzv <- myX.train[, -nzv_Indexes]
+myX.test_nzv  <- myX.test[, -nzv_Indexes]
+
+# TPM Log2 data
+nzv_Indexes_log2 <- caret::nearZeroVar(myX.train_log2) # Based only on the train set!
+myX.train_log2_nzv <- myX.train_log2[, -nzv_Indexes_log2]
+myX.test_log2_nzv  <- myX.test_log2[, -nzv_Indexes_log2]
+
+# They are the same
+
+
+###########################################################
+##################### SUBSET GENES ########################
+
+
+GeneList <- read_excel("Data/PredictorGenes/ListofPredictorGenes_byHand.xlsx", sheet = "AllGenes") %>%
+  pull() %>%
+  unique()
+
+
+
+
+###########################################################
+########################### SCALING #######################
 # Scaling needs to happen on the train set when separated, then use the same parameters on the test set, to prevent "leakage"
 
 # But glm scales automatically so don't need to scale here?
 
-# Remove near-zero variance genes
-nzv_Indexes <- caret::nearZeroVar(myX.train_log2) # Based only on the train set! 
-myX.train_log2_nzv <- myX.train_log2[, -nzv_Indexes]
-myX.test_log2_nzv  <- myX.test_log2[, -nzv_Indexes]
 
 # Scale the data
-myX.train_scaled <- scale(myX.train_log2_nzv) # Scale the train data first!
+# myX.train_scaled <- scale(myX.train_log2_nzv) # Scale the train data first!
 # Scale the test data based on the attributes of the scaled train data
-myX.test_scaled <- scale(
-  myX.test_log2_nzv,
-  center = attr(myX.train_scaled, "scaled:center"), # column means
-  scale = attr(myX.train_scaled, "scaled:scale")) # column SDs
+# myX.test_scaled <- scale(
+#   myX.test_log2_nzv,
+#   center = attr(myX.train_scaled, "scaled:center"), # column means
+#   scale = attr(myX.train_scaled, "scaled:scale")) # column SDs
 
+
+###########################################################
+##################### CREATE SEED LIST ####################
+# Because I need to set seed inside the training function cause I keep getting different results
+
+# For tuning alpha and lambda
+lassoGrid <- expand.grid(
+  alpha = seq(0, 1, by = 0.1), 
+  # alpha = 1, # When I want it to be lasso only
+  lambda = 10^seq(-4, 1, length = 100))
+
+set.seed(23)
+num_resamples <- my_nfolds * my_nrepeats
+num_models <- nrow(lassoGrid)
+seeds <- vector(mode = "list", length = num_resamples + 1)
+for (i in 1:num_resamples) {
+  seeds[[i]] <- sample.int(1000000, num_models)
+}
+
+# One final seed for final model
+seeds[[num_resamples + 1]] <- sample.int(1000000, 1)
 
 
 
@@ -77,45 +145,37 @@ myX.test_scaled <- scale(
 ############### K-FOLD LOGISTIC REGRESSION ################
 # https://rpubs.com/uky994/1328850
 
-set.seed(23)
+# Generate folds with a specific seed so it is repeatable
+set.seed(42)
+folds <- createMultiFolds(myY.train, k = my_nfolds, times = my_nrepeats)
 
-# 3-fold cross-validation, repeated 10 times
 train_control <- trainControl(
-  method = "repeatedcv", 
-  number = 3, # Number of folds,
-  repeats = 10, # Number of repeats
+  method = "cv", # "cv" instead of "repeatedcv" because are pre-defining folds for reproducibility
+  index = folds, # pre-defined for reproducibility
   verboseIter = F, 
   savePredictions = "final", # caret will store predictions from the best tuned model only
   classProbs = T,  # Caret will produce class probabilities not just predicted classes (cure/relapse). Needed to compute ROC/AUC
   summaryFunction = twoClassSummary) # For binary classification. Means caret will compute ROC/AUC, sensitivity, specificity
 
-
-# For tuning alpha and lambda
-lassoGrid <- expand.grid(
-  # alpha = seq(0, 1, by = 0.1),
-  alpha = 1, # When I want it to be lasso only
-  lambda = 10^seq(-4, 1, length = 100))
-
 # Train the model
 set.seed(23)
-kfold_model <- train(x = myX.train_log2_nzv, y = myY.train_log2,
+kfold_model <- train(x = myX.train_log2_nzv, y = myY.train,
                      method = "glmnet",
-                     metric = "ROC", # tells caret to optimize ROC during hyperparameter tuning
-                     # tuneGrid = lassoGrid, Only if doing lasso
-                     trControl = train_control,
+                     metric = "ROC",
+                     tuneGrid = lassoGrid, 
                      standardize = T, # This is in glmnet, telling it to scale (I think)
-                     # preProcess = c("center", "scale"), # Not really sure if I need this for scaling or not.... If this is selected, the standardize has to be F or it won't work.
-                     # tuneLength = 50,
-                     tuneGrid = lassoGrid) # , # Only if doing lasso)
+                     trControl = train_control,
+                     seeds = seeds) 
 
 # Warning message:
 # In lognet(x, is.sparse, y, weights, offset, alpha, nobs,  ... :
 # one multinomial or binomial class has fewer than 8  observations; dangerous ground
 
 # Check the alpha and best lambda used
-kfold_model$bestTune
-# alpha      lambda
-# 35     1 0.005214008
+kfold_model$bestTune$alpha
+# [1]  0
+kfold_model$bestTune$lambda
+# [1] 5.59081
 
 
 ###########################################################
@@ -128,14 +188,8 @@ coef_df <- coef(kfold_model$finalModel, s = kfold_model$bestTune$lambda) %>%
 coef_df <- coef_df[coef_df[, 1] != 0, , drop = FALSE]
 colnames(coef_df)[1] <- "V1"
 rownames(coef_df)
-# [1] "(Intercept)" "Rv0440"      "Rv0614"      "Rv0733"      "Rv0887c"     "Rv1098c"    
-# [7] "Rv1264"      "Rv1430"      "Rv1437"      "Rv1457c"     "Rv1719"      "Rv2030c"    
-# [13] "Rv2356c"     "Rv2413c"     "Rv2463"      "Rv2465c"     "Rv2625c"     "Rv2649"     
-# [19] "Rv2730"      "Rv2892c"     "Rv2986c"     "Rv3326"      "Rv3569c"     "Rv3781"     
-# [25] "Rv3786c"    
-# Where is Rv0625c??
 
-
+# write.csv(coef_df, paste0(my_folderPath, "/coef_df.csv"))
 
 # Plot the coefficients (it's backwards so negative is actually higher in relapse)
 coefficients_plot <- coef_df %>% 
@@ -144,12 +198,12 @@ coefficients_plot <- coef_df %>%
   ggplot(aes(x = reorder(rownames(.), V2), y = V2)) +
   geom_col() + 
   coord_flip() + 
-  labs(y = "Coefficient", x = "Gene", title = "3-fold 10-repeat CV logistic regression test set") + 
+  labs(y = "Coefficient", x = "Gene", title = my_figureTitle) + 
   theme_bw()
 coefficients_plot
 # ggsave(coefficients_plot,
-#        file = paste0("3fold10repeatCV_LR_W0_60Cov_Coefficients.pdf"),
-#        path = "Figures/PredictiveModeling/kfold_LR/W0_60Cov/3F10R",
+#        file = paste0("Coefficients.pdf"),
+#        path = my_folderPath,
 #        width = 6, height = 5, units = "in")
 
 ###########################################################
@@ -161,8 +215,10 @@ coefficients_plot
 
 # Print the ROC: Not sure if this is plotting in the right direction...
 roc_kfold <- roc(response = kfold_model$pred$obs,
-                 predictor = kfold_model$pred$Relapse)
-plot(roc_kfold, print.auc = TRUE, main = "10-fold 3-repeat CV logistic regression training set")
+                 predictor = kfold_model$pred$Relapse,
+                 levels = c("Cure", "Relapse"),  # control first, case second
+                 direction = "<")
+plot(roc_kfold, print.auc = TRUE, main = paste0(my_figureTitle, " Train set"))
 
 # Print a boxplot of the probabilities
 ggplot(kfold_model$pred, aes(x = obs, y = Relapse)) +
@@ -170,8 +226,15 @@ ggplot(kfold_model$pred, aes(x = obs, y = Relapse)) +
   geom_jitter(width = 0.15, alpha = 0.6, size = 1) +
   labs(x = "Observed outcome", 
        y = "Predicted relapse probability",
-       title = "k-fold logistic regression training set") +
+       title = paste0(my_figureTitle, " Train set")) +
   theme_bw()
+
+roc_mean <- mean(kfold_model$resample$ROC)
+roc_mean
+# 0.7013333
+roc_sd <- sd(kfold_model$resample$ROC)
+roc_sd
+# 0.3109547
 
 # These are plotting all the repeats, just plot the average for each sample
 kfold_avg <- kfold_model$pred %>%
@@ -183,8 +246,10 @@ kfold_avg <- kfold_model$pred %>%
 
 # Print the average ROC
 roc_kfold_avg <- roc(response = kfold_avg$obs,
-                     predictor = kfold_avg$mean_Relapse)
-plot(roc_kfold_avg, print.auc = TRUE, main = "Average 10-fold 3-repeat CV logistic regression training set")
+                     predictor = kfold_avg$mean_Relapse,
+                     levels = c("Cure", "Relapse"),  # control first, case second
+                     direction = "<")
+plot(roc_kfold_avg, print.auc = TRUE, main = "Average 3-fold 10-repeat CV logistic regression training set")
 
 # Make the ROC a ggplot object:
 roc_kfold_avg_df <- data.frame(Sensitivity = roc_kfold_avg$sensitivities,
@@ -199,13 +264,13 @@ roc_plot <- roc_kfold_avg_df %>%
   # scale_x_reverse() +
   coord_equal() +
   labs(x = "1-Specificity", y = "Sensitivity",
-       title = "Average 10-fold 3-repeat CV logistic regression train set",
+       title = paste0(my_figureTitle, " Train set"),
        subtitle = paste0("AUC=", round(auc_value,3), "; alpha=", round(alpha_value,3), "; lambda=", round(lambda_value,3))) + 
   theme_bw()
 roc_plot
 # ggsave(roc_plot,
-#        file = paste0("10fold3repeatCV_LR_W0_60Cov_ROC.pdf"),
-#        path = "Figures/PredictiveModeling/kfold_LR",
+#        file = paste0("ROC_TrainSet.pdf"),
+#        path = my_folderPath,
 #        width = 6, height = 4, units = "in")
 
 # Print the average boxplot of the probabilities
@@ -214,12 +279,12 @@ Probability_plot <- ggplot(kfold_avg, aes(x = obs, y = mean_Relapse)) +
   geom_jitter(width = 0.15, alpha = 0.6, size = 1) +
   labs(x = "Observed outcome", 
        y = "Predicted relapse probability",
-       title = "Average 10-fold 3-repeat CV logistic regression train set") +
+       title = paste0(my_figureTitle, " Train set")) +
   theme_bw()
 Probability_plot
 # ggsave(Probability_plot,
-#        file = paste0("10fold3repeatCV_LR_W0_60Cov_Probablities.pdf"),
-#        path = "Figures/PredictiveModeling/kfold_LR",
+#        file = paste0("Probablities_TrainSet.pdf"),
+#        path = my_folderPath,
 #        width = 6, height = 4, units = "in")
 
 
@@ -227,14 +292,16 @@ Probability_plot
 ############### TEST MODEL ON VALIDATION SET ##############
 
 # Now test on the validation set
-valiation_probabilities <- predict(
+validation_probabilities <- predict(
   kfold_model,
-  newdata = validation_data,
+  newdata = myX.test_log2,
   type = "prob") # To get probabilities
 
 # ROC for validation set
-roc_val <- roc(response = validation_data$Outcome, predictor = valiation_probabilities$Relapse)
-plot(roc_val, print.auc = TRUE, main = "10-fold 3-repeat CV logistic regression validation set")
+roc_val <- roc(response = myY.test_log2, predictor = validation_probabilities$Relapse,
+               levels = c("Cure", "Relapse"),  # control first, case second
+               direction = "<")
+plot(roc_val, print.auc = TRUE, main = paste0(my_figureTitle, " Test set"))
 
 # Make the ROC a ggplot object:
 roc_val_df <- data.frame(Sensitivity = roc_val$sensitivities, 
@@ -247,30 +314,30 @@ roc_Val_plot <- roc_val_df %>%
   # scale_x_reverse() +
   coord_equal() +
   labs(x = "1-Specificity", y = "Sensitivity",
-       title = "10-fold 3-repeat CV logistic regression validation set",
+       title = paste0(my_figureTitle, " Test set"),
        subtitle = paste0("AUC=", round(auc_value,3), "; alpha=", round(alpha_value,3), "; lambda=", round(lambda_value,3))) + 
   theme_bw()
 roc_Val_plot
 # ggsave(roc_Val_plot,
-#        file = paste0("10fold3repeatCV_LR_W0_60Cov_ROC_Validation.pdf"),
-#        path = "Figures/PredictiveModeling/kfold_LR",
+#        file = paste0("ROC_TestSet.pdf"),
+#        path = my_folderPath,
 #        width = 6, height = 4, units = "in")
 
 # Boxplot for validation set
 validation_plot_df <- data.frame(
-  True_Outcome = validation_data$Outcome,
-  Relapse_probibility = valiation_probabilities$Relapse)
+  True_Outcome = myY.test_log2,
+  Relapse_probibility = validation_probabilities$Relapse)
 Probability_Val_plot <- ggplot(validation_plot_df, aes(x = True_Outcome, y = Relapse_probibility)) +
   geom_boxplot(outlier.shape = NA, alpha = 0.7) +
   geom_jitter(width = 0.15, alpha = 0.7, size = 2) +
   labs(x = "True outcome",
        y = "Predicted relapse probability",
-       title = "10-fold 3-repeat CV logistic regression validation set") +
+       title = paste0(my_figureTitle, " Test set")) +
   theme_bw()
 Probability_Val_plot
 # ggsave(Probability_Val_plot,
-#        file = paste0("10fold3repeatCV_LR_W0_60Cov_Probabilities_Validation.pdf"),
-#        path = "Figures/PredictiveModeling/kfold_LR",
+#        file = paste0("Probabilites_TestSet.pdf"),
+#        path = my_folderPath,
 #        width = 6, height = 4, units = "in")
 
 

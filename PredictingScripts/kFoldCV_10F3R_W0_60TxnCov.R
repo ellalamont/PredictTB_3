@@ -1,4 +1,5 @@
 # K-fold cross validation (with logistic regression) 10 Fold 3 Repeats
+# Note: This was the first one I did, don't mess with it! But also don't seem to be able to repeat it
 # 1/14/26
 
 # https://www.sthda.com/english/articles/38-regression-model-validation/157-cross-validation-essentials-in-r/
