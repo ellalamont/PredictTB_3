@@ -1,8 +1,7 @@
 # K-fold cross validation (with logistic regression)
 # 5-fold 30-repeats: Do 5-fold cross validation 30 different times, each time with new random fold splits
-# TPM
-# Choosing specific genes that have appeared in other models
-# 3/4/26
+# DEG, then subset log2fold > 1 for genes
+# 3/5/26
 
 
 
@@ -24,8 +23,8 @@ detach("package:CMA", unload = TRUE)
 my_nfolds <- 5
 my_nrepeats <- 30
 
-my_folderPath <- "Figures/PredictiveModeling/kfold_LR/W0_60Cov/5F30R_Log2"
-my_figureTitle <- "5F30R LR Log2(TPM+1)"
+my_folderPath <- "Figures/PredictiveModeling/kfold_LR/W0_60Cov/5F30R_DEG"
+my_figureTitle <- "5F30R LR DEG"
 
 
 ###########################################################
@@ -47,6 +46,7 @@ model_df <- GoodSamples60_pipeSummary %>%
 # Log2 transform
 model_df_log2 <- model_df %>%
   mutate(across(where(is.numeric), ~ log2(.x + 1)))
+
 
 ###########################################################
 ################# SEPARATE TRAIN AND TEST #################
@@ -76,46 +76,72 @@ myX.test_log2  <- test_df_log2 %>% dplyr::select(-Outcome)
 myY.test_log2  <- test_df_log2$Outcome
 
 ###########################################################
-############ REMOVE NEAR ZERO VARIANCE GENES ##############
+################# DESEQ2 ON TRAIN SET #####################
 
-# TPM data
-nzv_Indexes <- caret::nearZeroVar(myX.train) # Based only on the train set! 
-myX.train_nzv <- myX.train[, -nzv_Indexes]
-myX.test_nzv  <- myX.test[, -nzv_Indexes]
+library(DESeq2)
 
-# TPM Log2 data
-nzv_Indexes_log2 <- caret::nearZeroVar(myX.train_log2) # Based only on the train set!
-myX.train_log2_nzv <- myX.train_log2[, -nzv_Indexes_log2]
-myX.test_log2_nzv  <- myX.test_log2[, -nzv_Indexes_log2]
+# RawReads of training set samples
+train_names <- rownames(train_df)
+train_RawReadsf <- GoodSamples60_RawReadsf %>% 
+  dplyr::select(X, all_of(train_names)) %>%
+  column_to_rownames("X") %>%
+  as.matrix() 
 
-# They are the same
+mode(train_RawReadsf) <- "integer"
 
+# Remove low count genes
+keep <- rowSums(train_RawReadsf > 5) >= 0.5 * ncol(train_RawReadsf)
+train_RawReadsf <- train_RawReadsf[keep, ] # now only 3967 genes (instead of 4030)
+
+# Outcome designation
+train_outcome <- train_df %>% dplyr::select(Outcome)
+
+# Ensure sample names line up
+stopifnot(all(colnames(train_RawReadsf) == rownames(train_outcome)))
+stopifnot(all(rownames(train_outcome) == colnames(train_RawReadsf)))
+
+# Make the DESeqDataSet object (using all the data)
+dds <- DESeqDataSetFromMatrix(countData = train_RawReadsf,
+                              colData = train_outcome,
+                              design = ~ Outcome)
+
+# Specify the reference level
+dds$Outcome <- relevel(dds$Outcome, ref = "Cure")
+
+# Run the DEG
+dds_DEG <- DESeq(dds)
+
+# Look at what comparisons there are
+resultsNames(dds_DEG)
+# "Intercept"               "Outcome_Relapse_vs_Cure"
+
+# See how many samples are in each condition
+table(dds_DEG$Outcome)
+# Cure Relapse 
+# 23       8 
+
+res <- results(dds_DEG, name = "Outcome_Relapse_vs_Cure")
+res
+
+DESeq2.res_W0_TrainSet_df <- as.data.frame(res) %>% # Could use res or resLFC and see how it is different
+  rownames_to_column("gene")
+
+# Add DE columns
+source("Function_Add_DE_Columns.R")
+DESeq2.res_W0_TrainSet_df <- add_DE_columns_function(DESeq2.res_W0_TrainSet_df, log2fold_cutoff = 1, padj_cutoff = 0.05)
+
+# See what the volcano looks like
+source("Function_Volcano.R")
+makeVolcano_EL(DESeq2.res_W0_TrainSet_df)
 
 ###########################################################
 ##################### SUBSET GENES ########################
 
+# Get list of genes Log2Fold >abs(1)
+GeneList <- DESeq2.res_W0_TrainSet_df %>% filter(abs(log2FoldChange) >= 1) %>% pull(gene) # 285 genes
 
-GeneList <- read_excel("Data/PredictorGenes/ListofPredictorGenes_byHand.xlsx", sheet = "AllGenes") %>%
-  pull() %>%
-  unique()
-
-
-
-
-###########################################################
-########################### SCALING #######################
-# Scaling needs to happen on the train set when separated, then use the same parameters on the test set, to prevent "leakage"
-
-# But glm scales automatically so don't need to scale here?
-
-
-# Scale the data
-# myX.train_scaled <- scale(myX.train_log2_nzv) # Scale the train data first!
-# Scale the test data based on the attributes of the scaled train data
-# myX.test_scaled <- scale(
-#   myX.test_log2_nzv,
-#   center = attr(myX.train_scaled, "scaled:center"), # column means
-#   scale = attr(myX.train_scaled, "scaled:scale")) # column SDs
+myX.train_subset <- myX.train %>% dplyr::select(all_of(GeneList))
+myX.test_subset <- myX.test %>% dplyr::select(all_of(GeneList))
 
 
 ###########################################################
@@ -159,7 +185,7 @@ train_control <- trainControl(
 
 # Train the model
 set.seed(23)
-kfold_model <- train(x = myX.train_log2_nzv, y = myY.train,
+kfold_model <- train(x = myX.train_subset, y = myY.train,
                      method = "glmnet",
                      metric = "ROC",
                      tuneGrid = lassoGrid, 
@@ -175,7 +201,7 @@ kfold_model <- train(x = myX.train_log2_nzv, y = myY.train,
 kfold_model$bestTune$alpha
 # [1]  0
 kfold_model$bestTune$lambda
-# [1] 5.59081
+# [1] 10
 
 
 ###########################################################
@@ -193,7 +219,7 @@ rownames(coef_df)
 
 # Plot the coefficients (it's backwards so negative is actually higher in relapse)
 coefficients_plot <- coef_df %>% 
-  slice(-1) %>% # Remove the y-intercept %>%
+  dplyr::slice(-1) %>% # Remove the y-intercept %>%
   mutate(V2 = V1*-1) %>% # Switch the signs
   ggplot(aes(x = reorder(rownames(.), V2), y = V2)) +
   geom_col() + 
@@ -231,17 +257,17 @@ ggplot(kfold_model$pred, aes(x = obs, y = Relapse)) +
 
 roc_mean <- mean(kfold_model$resample$ROC)
 roc_mean
-# 0.7013333
+# 0.9663333
 roc_sd <- sd(kfold_model$resample$ROC)
 roc_sd
-# 0.3109547
+# 0.07619224
 
 # These are plotting all the repeats, just plot the average for each sample
 kfold_avg <- kfold_model$pred %>%
   group_by(rowIndex) %>%
   summarize(
-    obs = first(obs),
-    mean_Relapse = mean(Relapse)
+    obs = dplyr::first(obs),
+    mean_Relapse = base::mean(Relapse)
   )
 
 # Print the average ROC
@@ -294,11 +320,11 @@ Probability_plot
 # Now test on the validation set
 validation_probabilities <- predict(
   kfold_model,
-  newdata = myX.test_log2,
+  newdata = myX.test_subset,
   type = "prob") # To get probabilities
 
 # ROC for validation set
-roc_val <- roc(response = myY.test_log2, predictor = validation_probabilities$Relapse,
+roc_val <- roc(response = myY.test, predictor = validation_probabilities$Relapse,
                levels = c("Cure", "Relapse"),  # control first, case second
                direction = "<")
 plot(roc_val, print.auc = TRUE, main = paste0(my_figureTitle, " Test set"))
@@ -341,5 +367,54 @@ Probability_Val_plot
 #        width = 6, height = 4, units = "in")
 
 
+# Determine best threshold
+validation_probabilities$Relapse
+bestThreshold <- coords(roc_val, "best", best.method = "youden")[[1]]
+bestThreshold # 0.1599237
 
+# Visualize best threshold
+threshold_plot <- roc_df %>%
+  ggplot(aes(x = threshold)) + 
+  geom_line(aes(y = sensitivity, color = "Sensitivity"), size = 1) +
+  geom_line(aes(y = specificity, color = "Specificity"), size = 1) +
+  geom_vline(xintercept = bestThreshold, linetype = "dashed") +
+  labs(x = "Probability Threshold", y = "Performance", color = "", title = paste0(my_figureTitle, " Threshold Performance")) +
+  theme_classic()
+threshold_plot
+# ggsave(threshold_plot,
+#        file = paste0("ProbabilityThreshold_TestSet.pdf"),
+#        path = my_folderPath,
+#        width = 6, height = 4, units = "in")
 
+# Confusion matrix with best threshold
+pred_class <- ifelse(validation_probabilities$Relapse >= bestThreshold, "Relapse", "Cure")
+pred_class <- factor(pred_class, levels = c("Relapse", "Cure"))
+caret::confusionMatrix(data = pred_class, reference = myY.test, positive = "Relapse")
+# Confusion Matrix and Statistics
+# 
+#           Reference
+# Prediction Relapse Cure
+# Relapse       3    6
+# Cure          0    3
+# 
+# Accuracy : 0.5             
+# 95% CI : (0.2109, 0.7891)
+# No Information Rate : 0.75            
+# P-Value [Acc > NIR] : 0.98575         
+# 
+# Kappa : 0.2             
+# 
+# Mcnemar's Test P-Value : 0.04123         
+#                                           
+#             Sensitivity : 1.0000          
+#             Specificity : 0.3333          
+#          Pos Pred Value : 0.3333          
+#          Neg Pred Value : 1.0000          
+#              Prevalence : 0.2500          
+#          Detection Rate : 0.2500          
+#    Detection Prevalence : 0.7500          
+#       Balanced Accuracy : 0.6667          
+#                                           
+#        'Positive' Class : Relapse 
+# 
+# 

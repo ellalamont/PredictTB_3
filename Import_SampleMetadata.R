@@ -90,7 +90,7 @@ Exp_metadata_3 <- Exp_metadata_3 %>% mutate(Patient = paste0("P_", SUBJID)) # 10
 ###########################################################
 ##################### SUBSET COLUMNS ######################
 
-my_metadata <- Exp_metadata_3 %>% dplyr::select(outcome, arm, Visit, Age, SEX, TBprev, BMI, Weight, CurrentSmoker, PrevSmoker, SmokeDuration, TTD, XpertCT_wk0, Patient, main_lineage, sub_lineage) %>% rename(Arm = arm)
+my_metadata <- Exp_metadata_3 %>% dplyr::select(outcome, arm, Visit, Age, SEX, TBprev, BMI, Weight, CurrentSmoker, PrevSmoker, SmokeDuration, TTD, XpertCT_wk0, Patient, main_lineage, sub_lineage) %>% dplyr::rename(Arm = arm)
 
 
 ###########################################################
