@@ -1,6 +1,7 @@
 # K-fold cross validation (with logistic regression)
 # 5-fold 30-repeats: Do 5-fold cross validation 30 different times, each time with new random fold splits
 # DEG, then subset log2fold > 1 for genes
+# Log2(TPM+1)
 # 3/5/26
 
 
@@ -23,8 +24,8 @@ detach("package:CMA", unload = TRUE)
 my_nfolds <- 5
 my_nrepeats <- 30
 
-my_folderPath <- "Figures/PredictiveModeling/kfold_LR/W0_60Cov/5F30R_DEG"
-my_figureTitle <- "5F30R LR DEG"
+my_folderPath <- "Figures/PredictiveModeling/kfold_LR/W0_60Cov/5F30R_DEG_Log2"
+my_figureTitle <- "5F30R LR DEG Log2(TPM+1)"
 
 
 ###########################################################
@@ -132,12 +133,7 @@ DESeq2.res_W0_TrainSet_df <- add_DE_columns_function(DESeq2.res_W0_TrainSet_df, 
 
 # See what the volcano looks like
 source("Function_Volcano.R")
-Volcano_plot <- makeVolcano_EL(DESeq2.res_W0_TrainSet_df, title = paste0(my_figureTitle, " Train Set"))
-Volcano_plot
-# ggsave(Volcano_plot,
-#        file = paste0("DESeq2_Volcano_TrainSet.pdf"),
-#        path = my_folderPath,
-#        width = 7, height = 5, units = "in")
+makeVolcano_EL(DESeq2.res_W0_TrainSet_df)
 
 ###########################################################
 ##################### SUBSET GENES ########################
@@ -148,6 +144,8 @@ GeneList <- DESeq2.res_W0_TrainSet_df %>% filter(abs(log2FoldChange) >= 1) %>% p
 myX.train_subset <- myX.train %>% dplyr::select(all_of(GeneList))
 myX.test_subset <- myX.test %>% dplyr::select(all_of(GeneList))
 
+myX.train_log2_subset <- myX.train_log2 %>% dplyr::select(all_of(GeneList))
+myX.test_log2_subset <- myX.test_log2 %>% dplyr::select(all_of(GeneList))
 
 ###########################################################
 ##################### CREATE SEED LIST ####################
@@ -190,7 +188,7 @@ train_control <- trainControl(
 
 # Train the model
 set.seed(23)
-kfold_model <- train(x = myX.train_subset, y = myY.train,
+kfold_model <- train(x = myX.train_log2_subset, y = myY.train,
                      method = "glmnet",
                      metric = "ROC",
                      tuneGrid = lassoGrid, 
@@ -206,7 +204,7 @@ kfold_model <- train(x = myX.train_subset, y = myY.train,
 kfold_model$bestTune$alpha
 # [1]  0
 kfold_model$bestTune$lambda
-# [1] 10
+# [1] 2.782559
 
 
 ###########################################################
@@ -262,10 +260,10 @@ ggplot(kfold_model$pred, aes(x = obs, y = Relapse)) +
 
 roc_mean <- mean(kfold_model$resample$ROC)
 roc_mean
-# 0.9663333
+# 0.9023333
 roc_sd <- sd(kfold_model$resample$ROC)
 roc_sd
-# 0.07619224
+# 0.1716077
 
 # These are plotting all the repeats, just plot the average for each sample
 kfold_avg <- kfold_model$pred %>%
@@ -304,6 +302,9 @@ roc_plot
 #        path = my_folderPath,
 #        width = 6, height = 4, units = "in")
 
+bestThreshold <- coords(roc_val, "best", best.method = "youden")[[1]][2] # There were two good thresholds, taking the larger one
+bestThreshold # 0.1032036
+
 # Print the average boxplot of the probabilities
 Probability_plot <- ggplot(kfold_avg, aes(x = obs, y = mean_Relapse)) +
   geom_boxplot(outlier.shape = NA, alpha = 0.7) +
@@ -325,7 +326,7 @@ Probability_plot
 # Now test on the validation set
 validation_probabilities <- predict(
   kfold_model,
-  newdata = myX.test_subset,
+  newdata = myX.test_log2_subset,
   type = "prob") # To get probabilities
 
 # ROC for validation set
@@ -372,11 +373,6 @@ Probability_Val_plot
 #        width = 6, height = 4, units = "in")
 
 
-# Determine best threshold
-validation_probabilities$Relapse
-bestThreshold <- coords(roc_val, "best", best.method = "youden")[[1]]
-bestThreshold # 0.1599237
-
 # Visualize best threshold
 threshold_plot <- roc_df %>%
   ggplot(aes(x = threshold)) + 
@@ -397,29 +393,28 @@ pred_class <- factor(pred_class, levels = c("Relapse", "Cure"))
 caret::confusionMatrix(data = pred_class, reference = myY.test, positive = "Relapse")
 # Confusion Matrix and Statistics
 # 
-#           Reference
+# Reference
 # Prediction Relapse Cure
-# Relapse       3    6
-# Cure          0    3
+# Relapse       2    3
+# Cure          1    6
 # 
-# Accuracy : 0.5             
-# 95% CI : (0.2109, 0.7891)
+# Accuracy : 0.6667          
+# 95% CI : (0.3489, 0.9008)
 # No Information Rate : 0.75            
-# P-Value [Acc > NIR] : 0.98575         
+# P-Value [Acc > NIR] : 0.8424          
 # 
-# Kappa : 0.2             
+# Kappa : 0.2727          
 # 
-# Mcnemar's Test P-Value : 0.04123         
+# Mcnemar's Test P-Value : 0.6171          
 #                                           
-#             Sensitivity : 1.0000          
-#             Specificity : 0.3333          
-#          Pos Pred Value : 0.3333          
-#          Neg Pred Value : 1.0000          
+#             Sensitivity : 0.6667          
+#             Specificity : 0.6667          
+#          Pos Pred Value : 0.4000          
+#          Neg Pred Value : 0.8571          
 #              Prevalence : 0.2500          
-#          Detection Rate : 0.2500          
-#    Detection Prevalence : 0.7500          
+#          Detection Rate : 0.1667          
+#    Detection Prevalence : 0.4167          
 #       Balanced Accuracy : 0.6667          
 #                                           
-#        'Positive' Class : Relapse 
-# 
-# 
+#        'Positive' Class : Relapse   
+# # 
