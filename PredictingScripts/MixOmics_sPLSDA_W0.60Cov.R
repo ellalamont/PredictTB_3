@@ -4,6 +4,8 @@
 
 # Lets do this properly this time with the testing and training sets
 
+# 3/9/26: Adjusted so the train and test sets are the same as all the others
+
 # https://mixomics.org/case-studies/splsda-srbct-case-study-2/
 # https://mixomics.org/methods/spls-da/
 
@@ -15,67 +17,95 @@ source("Import_data.R")
 library(mixOmics)
 
 ###########################################################
-####################### PROCESS DATA ######################
+######################### SET PATHS #######################
 
-myX <- GoodSamples60_tpmf %>% # Using TPM to start...
-  # dplyr::select(-contains("THP1")) %>%
-  # dplyr::select(-contains("Broth")) %>% # Lets take out broth as well
-  dplyr::select(contains("W0")) %>% 
-  t()
+my_nfolds <- 5
+my_nrepeats <- 30
 
-# Remove genes (columns) that are all zero
-myX <- myX[, colSums(myX) != 0] # Remove columns that are all zero so the scale works for prcomp
+my_folderPath <- "Figures/PredictiveModeling/Mixomics_PLSDA/W0_60Cov"
+my_figureTitle <- "Mixomics sPLSDA TPM"
 
-# Want this to be Type2 I guess 
-my_pipeSummary2 <- my_pipeSummary %>%
-  slice(match(rownames(myX), SampleID2)) # Match the rows then just keep the one that are the same
-stopifnot(all(rownames(myX) %in% my_pipeSummary2$SampleID2))
-myY <- my_pipeSummary2 %>%
-  pull(Type2) %>%
-  factor()
-
-summary(myY)
-# W0 sputum (cure) W0 sputum (relapse) 
-# 32                  11 
 
 ###########################################################
-############ SEPARATE TESTING AND TRAINING SETS ###########
+##################### ORGANIZE DATA #######################
 
-# set.seed(23) # 23
-# train <- sample(1:nrow(myX), 30) # randomly select 30 samples in training
-# test <- setdiff(1:nrow(myX), train) # rest is part of the test set
-# 
-# # store matrices into training and test set:
-# myX.train <- myX[train, ]
-# myX.test <- myX[test,]
-# myY.train <- myY[train] # 7 relapses
-# myY.test <- myY[test] # 4 relapses, 9 cures
-# myY.test
+tpm_t <- GoodSamples60_tpmf %>% 
+  t() %>%
+  as.data.frame() %>%
+  rownames_to_column("SampleID2")
 
-# Make sure they are statified evenly?
+model_df <- GoodSamples60_pipeSummary %>% 
+  filter(Type == "Week 0 sputum") %>%
+  dplyr::select(SampleID2, Outcome) %>%
+  mutate(Outcome = factor(Outcome, levels = c("Relapse", "Cure"))) %>% # Can't switch these or the train/test split will be different
+  inner_join(tpm_t, by = "SampleID2") %>%
+  column_to_rownames("SampleID2") %>%
+  na.omit()
+
+# Log2 transform
+model_df_log2 <- model_df %>%
+  mutate(across(where(is.numeric), ~ log2(.x + 1)))
+
+
+###########################################################
+################# SEPARATE TRAIN AND TEST #################
+
+# TPM Transformed Data
 set.seed(23)
-relapse_idx <- which(myY == "W0 sputum (relapse)")
-cure_idx    <- which(myY == "W0 sputum (cure)")
-set.seed(23)
-train_relapse <- sample(relapse_idx, round(0.7 * length(relapse_idx)))
-train_cure    <- sample(cure_idx, round(0.7 * length(cure_idx)))
+trainIndexes <- model_df$Outcome %>% 
+  createDataPartition(p = 0.7, list = FALSE) # 0.7 gives the test data 3 relapses and the train data 9 relapses
+train_df  <- model_df[trainIndexes, ]
+test_df <- model_df[-trainIndexes, ]
+# Separate X and Y
+myX.train <- train_df %>% dplyr::select(-Outcome)
+myY.train <- train_df$Outcome %>% factor(levels = c("Cure","Relapse")) # I have no idea if I need to do this or not... Switches the coefficient plot but end result is the same
+myX.test  <- test_df %>% dplyr::select(-Outcome)
+myY.test  <- test_df$Outcome %>% factor(levels = c("Cure","Relapse"))
 
-train <- c(train_relapse, train_cure)
-test  <- setdiff(1:length(myY), train)
+# LOG2 Transformed Data
+# set.seed(23)
+# trainIndexes <- model_df_log2$Outcome %>% 
+#   createDataPartition(p = 0.7, list = FALSE) # 0.7 gives the test data 3 relapses and the train data 9 relapses
+# train_df_log2  <- model_df_log2[trainIndexes, ]
+# test_df_log2 <- model_df_log2[-trainIndexes, ]
+# # Separate X and Y
+# myX.train_log2 <- train_df_log2 %>% dplyr::select(-Outcome)
+# myY.train_log2 <- train_df_log2$Outcome # %>% factor(levels = c("Cure","Relapse"))
+# myX.test_log2  <- test_df_log2 %>% dplyr::select(-Outcome)
+# myY.test_log2  <- test_df_log2$Outcome # %>% factor(levels = c("Cure","Relapse"))
 
-myX.train <- myX[train, ]
-myX.test  <- myX[test,]
+###########################################################
+############ REMOVE NEAR ZERO VARIANCE GENES ##############
 
-myY.train <- myY[train]
-myY.test  <- myY[test]
-myY.test
+# TPM data
+nzv_Indexes <- caret::nearZeroVar(myX.train) # Based only on the train set! 
+if (length(nzv_Indexes) > 0) {
+  myX.train_nzv <- myX.train[, -nzv_Indexes]
+  myX.test_nzv  <- myX.test[, -nzv_Indexes]
+} else {
+  myX.train_nzv <- myX.train
+  myX.test_nzv  <- myX.test
+}
+
+# TPM Log2 data
+# nzv_Indexes_log2 <- caret::nearZeroVar(myX.train_log2) # Based only on the train set!
+# # They are the same
+# if (length(nzv_Indexes_log2) > 0) {
+#   myX.train_log2_nzv <- myX.train_log2[, -nzv_Indexes_log2]
+#   myX.test_log2_nzv  <- myX.test_log2[, -nzv_Indexes_log2]
+# } else {
+#   myX.train_log2_nzv <- myX.train_log2
+#   myX.test_log2_nzv  <- myX.test_log2
+# }
 
 
 ###########################################################
 ############# INITIAL sPLS-DA ON TRAINING SET #############
 
 # Initial model
-train.splsda <- splsda(myX.train, myY.train, ncomp = 10)  # set ncomp to 10 for performance assessment later
+set.seed(23)
+train.splsda <- mixOmics::splsda(myX.train_nzv, myY.train, ncomp = 10) # set ncomp to 10 for performance assessment later
+
 
 ###########################################################
 ########## PLOT INITIAL sPLS-DA ON TRAINING SET ###########
@@ -85,23 +115,26 @@ train_PLSDA_1 <- plotIndiv(train.splsda , comp = 1:2,
                            group = myY.train, ind.names = F,  # colour points by class
                            ellipse = TRUE, # include 95% confidence ellipse for each class
                            legend = TRUE, 
-                           title = 'W0 training set PLSDA with confidence ellipses')
+                           col = c("#0072B2", "#bc5300"),
+                           title = 'W0 training set sPLSDA with confidence ellipses')
 train_PLSDA_1$graph
 # ggsave(train_PLSDA_1$graph,
-#        file = paste0("PLSDA1_W0.60Cov_TrainSet_v1.pdf"),
-#        path = "Figures/PredictiveModeling/Mixomics_PLSDA/W0_60Cov",
+#        file = paste0("sPLSDA_TrainSet.pdf"),
+#        path = my_folderPath,
 #        width = 8, height = 5, units = "in")
 
 # use the max.dist measure to form decision boundaries between classes based on PLS-DA data
+set.seed(23)
 background = background.predict(train.splsda, comp.predicted=2, dist = "max.dist")
 # plot the samples projected onto the first two components of the PLS-DA subspace
 train_PLSDA_2 <- plotIndiv(train.splsda, comp = 1:2,
                      group = myY.train, ind.names = FALSE, # colour points by class
                      background = background, # include prediction background for each class
-                     legend = TRUE, title = "W0 training set PLSDA with prediction background")
+                     col = c("#0072B2", "#bc5300"),
+                     legend = TRUE, title = "W0 training set sPLSDA with prediction background")
 # ggsave(train_PLSDA_2$graph,
-#        file = paste0("PLSDA2_W0.60Cov_TrainSet_v1.pdf"),
-#        path = "Figures/PredictiveModeling/Mixomics_PLSDA/W0_60Cov",
+#        file = paste0("sPLSDA2_TrainSet.pdf"),
+#        path = my_folderPath,
 #        width = 8, height = 5, units = "in")
 
 
@@ -111,8 +144,9 @@ train_PLSDA_2 <- plotIndiv(train.splsda, comp = 1:2,
 ## ncomp: number of components ##
 
 # undergo performance evaluation in order to tune the number of components to use
+set.seed(23)
 perf.splsda.train <- perf(train.splsda, validation = "Mfold", 
-                          folds = 3, nrepeat = 50, # use repeated cross-validation. folds = 3 or 5...
+                          folds = my_nfolds, nrepeat = my_nrepeats, 
                           progressBar = FALSE, auc = TRUE) # include AUC values
 
 # plot the outcome of performance evaluation across all ten components
@@ -133,15 +167,16 @@ perf.splsda.train$choice.ncomp # what is the optimal value of components accordi
 list.keepX <- c(1:10,  seq(20, 300, 10))
 
 # undergo the tuning process to determine the optimal number of variables
-tune.splsda.train <- tune.splsda(myX.train, myY.train, ncomp = 2, # calculate for first 2 components
+set.seed(23)
+tune.splsda.train <- tune.splsda(myX.train_nzv, myY.train, ncomp = 2, # calculate for first 2 components
                                  validation = 'Mfold',
-                                 folds = 5, nrepeat = 50, # use repeated cross-validation
+                                 folds = my_nfolds, nrepeat = my_nrepeats, # use repeated cross-validation
                                  dist = 'max.dist', # use max.dist measure
                                  measure = "BER", # use balanced error rate of dist measure
                                  test.keepX = list.keepX)
 
 plot(tune.splsda.train, col = color.jet(2)) # plot output of variable number tuning
-# Each colored line is a BER (none are below 0.45!). SD is based on repeated cross validation folds.
+# Each colored line is a BER. SD is based on repeated cross validation folds.
 # As sPLS-DA is an iterative algorithm, values represented for a given component (e.g. comp 1 to 2) include the optimal keepX value chosen for the previous component (comp 1).
 # 1-6 looks the best...
 
@@ -150,29 +185,27 @@ tune.splsda.train$choice.ncomp$ncomp # what is the optimal value of components a
 
 
 tune.splsda.train$choice.keepX # what are the optimal values of variables according to tune.splsda()
-# comp1 comp2 
-# 280    80 
-# I think these are genes being used?
+
 
 # I guess I'll just use what it tells me...
 optimal.ncomp.train <- tune.splsda.train$choice.ncomp$ncomp 
 # 1
 optimal.keepX.train <- tune.splsda.train$choice.keepX[1:optimal.ncomp.train]
-# comp1 comp2 comp3 comp4 
-# 290     2   270   240 
+
 
 # Doesn't work when It's 1, has to at least be two
 optimal.ncomp.train <- 2
 optimal.keepX.train <- tune.splsda.train$choice.keepX[1:optimal.ncomp.train]
 # comp1 comp2 
-# 280    80 
+# 270    10 
 
 
 ###########################################################
 ############## FINAL sPLS-DA ON TRAINING SET ##############
 
 # form final model with optimised values for component and variable count
-final.splsda.train <- splsda(myX.train, myY.train, 
+set.seed(23)
+final.splsda.train <- mixOmics::splsda(myX.train_nzv, myY.train, 
                        ncomp = optimal.ncomp.train, 
                        keepX = optimal.keepX.train)
 
@@ -183,9 +216,10 @@ sPLSDA_FinalModel_Comp12 <- plotIndiv(final.splsda.train , comp = c(1,2),
                                       group = myY.train, ind.names = F, 
                                       ellipse = TRUE, # include 95% confidence ellipse
                                       legend = TRUE,
+                                      col = c("#bc5300", "#0072B2"),
                                       title = 'W0 Final sPLSDA comp 1&2')
 # ggsave(sPLSDA_FinalModel_Comp12$graph,
-#        file = paste0("sPLSDA_FinalModel_Comp12_W0.60Cov_TrainSet_v1.pdf"),
+#        file = paste0("sPLSDA_FinalModel_TrainSet.pdf"),
 #        path = "Figures/PredictiveModeling/Mixomics_PLSDA/W0_60Cov",
 #        width = 8, height = 5, units = "in")
 
@@ -199,7 +233,7 @@ sPLSDA_FinalModel_Comp12_v2 <- plotIndiv(final.splsda.train , comp = c(1,2),
                                       title = 'W0 Final sPLSDA comp 1&2')
 # ggsave(sPLSDA_FinalModel_Comp12_v2$graph,
 #        file = paste0("sPLSDA_FinalModel_Comp12_W0.60Cov_TrainSet_v2.pdf"),
-#        path = "Figures/PredictiveModeling/Mixomics_PLSDA/W0_60Cov",
+#        path = my_folderPath,
 #        width = 8, height = 5, units = "in")
 
 ###############################################################
@@ -210,8 +244,9 @@ sPLSDA_FinalModel_Comp12_v2 <- plotIndiv(final.splsda.train , comp = c(1,2),
 # hmmm everything is 1....
 
 # form new perf() object which utilises the final model
+set.seed(23)
 perf.final.splsda.train <- perf(final.splsda.train, 
-                          folds = 3, nrepeat = 50, # use repeated cross-validation
+                          folds = my_nfo, nrepeat = my_nrepeats, # use repeated cross-validation
                           validation = "Mfold", dist = "max.dist",  # use max.dist measure
                           progressBar = FALSE)
 
@@ -232,11 +267,12 @@ plot(perf.final.splsda.train$features$stable[[3]], type = 'h',
 # Saved with Export
 
 # Save the variable features table
-# my_list <- perf.final.splsda.train$features$stable
-# my_list_df <- lapply(my_list, function(x) {
-#   data.frame(Feature = x)
-# })
-# write_xlsx(my_list_df, "Figures/PredictiveModeling/Mixomics_PLSDA/Variable_Stability_FinalsPLSDA_W0.60Cov.xlsx")
+my_list <- perf.final.splsda.train$features$stable
+my_list_df <- lapply(my_list, function(x) {
+  data.frame(Feature = x)
+})
+write_xlsx(my_list_df, paste0(my_folderPath, "/Variable_Stability_Final.xlsx"))
+
 
 ## Correlation Circle Plot ##
 plotVar(final.splsda.train, comp = c(1,2), cex = 3) # generate correlation circle plot
@@ -248,13 +284,14 @@ plotVar(final.splsda.train, comp = c(1,2), cex = 3) # generate correlation circl
 # The model is applied on the test set using a specific distance metric. In this case, the Mahalanobis distance was used (arbitrarily).
 # Could try different distance matrixes?
 # use the model on the Xtest set
+set.seed(23)
 predict.splsda.Mahalanobis <- predict(object = final.splsda.train, 
-                                      newdata = myX.test,
+                                      newdata = myX.test_nzv,
                                       dist = "mahalanobis.dist",
                                       type = "prob")
 # str(predict.splsda.Mahalanobis)
 predict.splsda.Mahalanobis$predict
-scores_Comp1 <- predict.splsda.Mahalanobis$predict[, "W0 sputum (relapse)", 1]
+scores_Comp1 <- predict.splsda.Mahalanobis$predict[, "Relapse", 1]
 tapply(scores_Comp1, myY.test, mean)
 
 # predict.splsda.max <- predict(final.splsda.train, myX.test, 
@@ -265,59 +302,22 @@ tapply(scores_Comp1, myY.test, mean)
 # Training AUC
 auc.splsda = auroc(final.splsda.train, roc.comp = 1, print = FALSE) # AUROC for the first component
 # ggsave(auc.splsda$graph,
-#        file = paste0("ROC_sPLSDA_FinalModel_Comp1_W0.60Cov_TrainingSet_v1.pdf"),
-#        path = "Figures/PredictiveModeling/Mixomics_PLSDA/W0_60Cov",
+#        file = paste0("ROC_sPLSDA_FinalModel_TrainingSet.pdf"),
+#        path = my_folderPath,
 #        width = 8, height = 5, units = "in")
 auc.splsda = auroc(final.splsda.train, roc.comp = 2, print = FALSE) # AUROC for all three components
 
 # Test Set AUC
 auc.splsda <- auroc(object = final.splsda.train, 
-                    newdata = myX.test, outcome.test = myY.test,
+                    newdata = myX.test_nzv, outcome.test = myY.test,
                     roc.comp = 1, print = FALSE) # AUROC for all three components
 # Looked at using the other components, and just using 1 is best here... Can't figure out how to plot them all on one graph
 # ggsave(auc.splsda$graph,
-#        file = paste0("ROC_sPLSDA_FinalModel_Comp1_W0.60Cov_TestValidation_v1.pdf"),
-#        path = "Figures/PredictiveModeling/Mixomics_PLSDA/W0_60Cov",
+#        file = paste0("ROC_sPLSDA_FinalModel_TestSet.pdf"),
+#        path = my_folderPath,
 #        width = 8, height = 5, units = "in")
 
 
-###########################################################
-############### TEST MODEL WITH ROC FUNCTION ##############
-# Like what I was doing with the kFoldCV. This works but can only plot one comp at a time, doesn't combine them.
-
-# # Now test on the validation set
-# valiation_probabilities <- predict(
-#   final.splsda.train,
-#   newdata = myX.test,
-#   dist = "mahalanobis.dist",
-#   type = "prob") # To get probabilities
-# 
-# scores_Comp1 <- valiation_probabilities$predict[, "W0 sputum (relapse)", 1]
-# tapply(scores_Comp1, myY.test, mean)
-# # W0 sputum (cure) W0 sputum (relapse) 
-# # 0.2046237           0.2930939 
-# 
-# # ROC for validation set
-# roc_val <- roc(response = myY.test, predictor = scores_Comp1)
-# # Setting levels: control = W0 sputum (cure), case = W0 sputum (relapse)
-# # Setting direction: controls < cases # So higher scores are relapses 
-# plot(roc_val, print.auc = TRUE, main = "MixOmics sPLSDA Comp1")
-# 
-# # Make the ROC a ggplot object:
-# roc_val_df <- data.frame(Sensitivity = roc_val$sensitivities, 
-#                          Specificity = roc_val$specificities)
-# auc_value <- auc(roc_val)
-# roc_Val_plot <- roc_val_df %>% 
-#   ggplot(aes(x = 1-Specificity, y = Sensitivity)) +
-#   geom_path(linewidth = 1) +
-#   geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
-#   # scale_x_reverse() +
-#   coord_equal() +
-#   labs(x = "1-Specificity", y = "Sensitivity",
-#        title = "MixOmics sPLSDA Comp1",
-#        subtitle = paste0("AUC=", round(auc_value,3))) + 
-#   theme_bw()
-# roc_Val_plot
 
 ###########################################################
 ############# ADD TEST POINTS TO sPLSDA GRAPH #############
@@ -331,10 +331,11 @@ train_df <- data.frame(Dim1 = train_coords[, 1],
                        Set = "Train")
 
 # Use predict() to get variates for test set
-pred_test <- predict(final.splsda.train, newdata = myX.test, type = "variates")
+set.seed(23)
+pred_test <- predict(final.splsda.train, newdata = myX.test_nzv, type = "variates")
 
 predict.splsda.Mahalanobis_variates <- predict(object = final.splsda.train, 
-                                      newdata = myX.test,
+                                      newdata = myX.test_nzv,
                                       dist = "mahalanobis.dist",
                                       type = "variates")
 
@@ -346,15 +347,15 @@ test_df <- data.frame(Dim1 = test_coords[, 1],
                       Set = "Test")
 
 plot_df <- rbind(train_df, test_df) %>%
-  mutate(Shape = case_when(Set == "Train" & Group == "W0 sputum (cure)" ~ 21,
-                           Set == "Train" & Group == "W0 sputum (relapse)" ~ 24,
-                           Set == "Test" & Group == "W0 sputum (cure)" ~ 21,
-                           Set == "Test" & Group == "W0 sputum (relapse)" ~ 24),
+  mutate(Shape = case_when(Set == "Train" & Group == "Cure" ~ 21,
+                           Set == "Train" & Group == "Relapse" ~ 24,
+                           Set == "Test" & Group == "Cure" ~ 21,
+                           Set == "Test" & Group == "Relapse" ~ 24),
          Fill = case_when(Set == "Train" ~ NA_character_,  # hollow
                           Set == "Test" ~ Group # filled by class
     ))
 # Make Fill a factor for scale_fill_manual
-plot_df$Fill <- factor(plot_df$Fill, levels = c("W0 sputum (cure)", "W0 sputum (relapse)"))
+plot_df$Fill <- factor(plot_df$Fill, levels = c("Relapse", "Cure"))
 
 
 sPLSDA_TrainTest <- ggplot(plot_df, aes(x = Dim1, y = Dim2, color = Group, shape = Shape, fill = Fill)) +
@@ -363,14 +364,14 @@ sPLSDA_TrainTest <- ggplot(plot_df, aes(x = Dim1, y = Dim2, color = Group, shape
                aes(x = Dim1, y = Dim2, color = Group),
                type = "norm", level = 0.95, linetype = 2) +
   scale_shape_identity() +
-  scale_fill_manual(values = c("W0 sputum (cure)" = "#0072B2", "W0 sputum (relapse)" = "#bc5300"), na.value = NA, guide = "none") +
-  scale_color_manual(values = c("W0 sputum (cure)" = "#0072B2", "W0 sputum (relapse)" = "#bc5300")) +
+  scale_fill_manual(values = c("Cure" = "#0072B2", "Relapse" = "#bc5300"), na.value = NA, guide = "none") +
+  scale_color_manual(values = c("Cure" = "#0072B2", "Relapse" = "#bc5300")) +
   labs(title = "sPLS-DA Comp 1 & 2: Train (hollow) + Test (filled)") +
   theme_bw()
 sPLSDA_TrainTest
 # ggsave(sPLSDA_TrainTest,
-#        file = paste0("PLSDA_W0.60Cov_TrainTest_v1.pdf"),
-#        path = "Figures/PredictiveModeling/Mixomics_PLSDA/W0_60Cov",
+#        file = paste0("PLSDA_TrainTest.pdf"),
+#        path = my_folderPath,
 #        width = 8, height = 5, units = "in")
 
 ###########################################################
@@ -379,7 +380,7 @@ sPLSDA_TrainTest
 # Choose component (e.g., comp 1)
 comp_to_use <- 1
 # Extract relapse probability
-relapse_prob <- predict.splsda.Mahalanobis$predict[, "W0 sputum (relapse)", comp_to_use]
+relapse_prob <- predict.splsda.Mahalanobis$predict[, "Relapse", comp_to_use]
 
 validation_plot_df <- data.frame(
   True_Outcome = myY.test,
@@ -392,7 +393,10 @@ Probability_Val_plot <- ggplot(validation_plot_df, aes(x = True_Outcome, y = Rel
        title = "MixOmics") +
   theme_bw()
 Probability_Val_plot
-
+# ggsave(Probability_Val_plot,
+#        file = paste0("Probabilities_TestSet.pdf"),
+#        path = my_folderPath,
+#        width = 8, height = 5, units = "in")
 
 
 

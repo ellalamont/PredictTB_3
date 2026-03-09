@@ -228,13 +228,15 @@ ggplot(kfold_model$pred, aes(x = obs, y = Relapse)) +
 
 roc_mean <- mean(kfold_model$resample$ROC)
 roc_mean
-# 0.7013333
+# 0.9858333
 roc_sd <- sd(kfold_model$resample$ROC)
 roc_sd
-# 0.3109547
+# 0.04944462
 
 # These are plotting all the repeats, just plot the average for each sample
 kfold_avg <- kfold_model$pred %>%
+  dplyr::filter(alpha == kfold_model$bestTune$alpha,
+                lambda == kfold_model$bestTune$lambda) %>% 
   group_by(rowIndex) %>%
   summarize(
     obs = dplyr::first(obs),
@@ -284,6 +286,30 @@ Probability_plot
 #        path = my_folderPath,
 #        width = 6, height = 4, units = "in")
 
+
+###########################################################
+################ BEST PROBABILITY THRESHOLD ###############
+
+# 3/9/26: Need to do this on the training samples!
+# From roc_kfold_avg
+
+# Choose the best specificity and sensitivity
+bestThreshold <- coords(roc_kfold_avg, x = "best", best.method = "youden", transpose = F)["threshold"]
+bestThreshold
+# 0.2607721
+
+# Look at all the options
+roc_table <- coords(roc_kfold_avg, x = "all", ret = c("threshold", "sensitivity", "specificity"), transpose = FALSE)
+roc_table
+
+# Choose 1 sensitivity but only 0.5 specificity
+bestThreshold <- roc_table %>% 
+  filter(sensitivity == 1) %>%
+  slice_min(abs(specificity - 0.5)) %>% # Choose the values closest to specificity = 0.5 
+  slice_max(threshold) %>%
+  pull(threshold)
+bestThreshold
+# 0.1900668
 
 ###########################################################
 ############### TEST MODEL ON VALIDATION SET ##############
@@ -339,11 +365,6 @@ Probability_Val_plot
 #        width = 6, height = 4, units = "in")
 
 
-# Determine best threshold
-validation_probabilities$Relapse
-bestThreshold <- coords(roc_val, "best", best.method = "youden")[[1]]
-bestThreshold # 0.1071457
-
 # Visualize best threshold
 threshold_plot <- roc_df %>%
   ggplot(aes(x = threshold)) + 
@@ -366,27 +387,26 @@ caret::confusionMatrix(data = pred_class, reference = myY.test, positive = "Rela
 # 
 # Reference
 # Prediction Relapse Cure
-# Relapse       3    1
-# Cure          0    8
+# Relapse       0    0
+# Cure          3    9
 # 
-# Accuracy : 0.9167          
-# 95% CI : (0.6152, 0.9979)
+# Accuracy : 0.75            
+# 95% CI : (0.4281, 0.9451)
 # No Information Rate : 0.75            
-# P-Value [Acc > NIR] : 0.1584          
+# P-Value [Acc > NIR] : 0.6488          
 # 
-# Kappa : 0.8             
+# Kappa : 0               
 # 
-# Mcnemar's Test P-Value : 1.0000          
+# Mcnemar's Test P-Value : 0.2482          
 #                                           
-#             Sensitivity : 1.0000          
-#             Specificity : 0.8889          
-#          Pos Pred Value : 0.7500          
-#          Neg Pred Value : 1.0000          
-#              Prevalence : 0.2500          
-#          Detection Rate : 0.2500          
-#    Detection Prevalence : 0.3333          
-#       Balanced Accuracy : 0.9444          
+#             Sensitivity : 0.00            
+#             Specificity : 1.00            
+#          Pos Pred Value :  NaN            
+#          Neg Pred Value : 0.75            
+#              Prevalence : 0.25            
+#          Detection Rate : 0.00            
+#    Detection Prevalence : 0.00            
+#       Balanced Accuracy : 0.50            
 #                                           
-#        'Positive' Class : Relapse  
-
-
+#        'Positive' Class : Relapse         
+#                                       
