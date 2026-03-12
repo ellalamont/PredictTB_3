@@ -394,3 +394,12 @@ write.csv(W0_tpmf, "Data/ForEvanJohnson/W0TPM_20260203.csv")
 write.csv(W0_Metadata, "Data/ForEvanJohnson/W0Metadata_20260203.csv", row.names = F)
 
 colSums(W0_tpmf)
+
+
+# Week 2 Cure and Relapse TPM to look at
+GoodSputum60_W2_tpmf <- GoodSputum60_tpmf %>% 
+  dplyr::select(contains("W2"))
+
+# write.csv(GoodSputum60_W2_tpmf, "Data/ForHassan/W2TPM_20260312.csv")
+
+
