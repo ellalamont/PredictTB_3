@@ -53,16 +53,16 @@ model_df_log2 <- model_df %>%
 ################# SEPARATE TRAIN AND TEST #################
 
 # TPM Transformed Data
-set.seed(23)
-trainIndexes <- model_df$Outcome %>% 
-  createDataPartition(p = 0.7, list = FALSE) # 0.7 gives the test data 3 relapses and the train data 9 relapses
-train_df  <- model_df[trainIndexes, ]
-test_df <- model_df[-trainIndexes, ]
-# Separate X and Y
-myX.train <- train_df %>% dplyr::select(-Outcome)
-myY.train <- train_df$Outcome # %>% factor(levels = c("Cure","Relapse")) # I have no idea if I need to do this or not... Switches the coefficient plot but end result is the same
-myX.test  <- test_df %>% dplyr::select(-Outcome)
-myY.test  <- test_df$Outcome # %>% factor(levels = c("Cure","Relapse"))
+# set.seed(23)
+# trainIndexes <- model_df$Outcome %>% 
+#   createDataPartition(p = 0.7, list = FALSE) # 0.7 gives the test data 3 relapses and the train data 9 relapses
+# train_df  <- model_df[trainIndexes, ]
+# test_df <- model_df[-trainIndexes, ]
+# # Separate X and Y
+# myX.train <- train_df %>% dplyr::select(-Outcome)
+# myY.train <- train_df$Outcome %>% factor(levels = c("Cure","Relapse")) # I have no idea if I need to do this or not... Switches the coefficient plot but end result is the same
+# myX.test  <- test_df %>% dplyr::select(-Outcome)
+# myY.test  <- test_df$Outcome %>% factor(levels = c("Cure","Relapse"))
 
 # LOG2 Transformed Data
 set.seed(23)
@@ -72,22 +72,22 @@ train_df_log2  <- model_df_log2[trainIndexes, ]
 test_df_log2 <- model_df_log2[-trainIndexes, ]
 # Separate X and Y
 myX.train_log2 <- train_df_log2 %>% dplyr::select(-Outcome)
-myY.train_log2 <- train_df_log2$Outcome # %>% factor(levels = c("Cure","Relapse"))
+myY.train_log2 <- train_df_log2$Outcome %>% factor(levels = c("Cure","Relapse"))
 myX.test_log2  <- test_df_log2 %>% dplyr::select(-Outcome)
-myY.test_log2  <- test_df_log2$Outcome # %>% factor(levels = c("Cure","Relapse"))
+myY.test_log2  <- test_df_log2$Outcome %>% factor(levels = c("Cure","Relapse"))
 
 ###########################################################
 ############ REMOVE NEAR ZERO VARIANCE GENES ##############
 
 # TPM data
-nzv_Indexes <- caret::nearZeroVar(myX.train) # Based only on the train set! 
-if (length(nzv_Indexes) > 0) {
-  myX.train_nzv <- myX.train[, -nzv_Indexes]
-  myX.test_nzv  <- myX.test[, -nzv_Indexes]
-} else {
-  myX.train_nzv <- myX.train
-  myX.test_nzv  <- myX.test
-}
+# nzv_Indexes <- caret::nearZeroVar(myX.train) # Based only on the train set! 
+# if (length(nzv_Indexes) > 0) {
+#   myX.train_nzv <- myX.train[, -nzv_Indexes]
+#   myX.test_nzv  <- myX.test[, -nzv_Indexes]
+# } else {
+#   myX.train_nzv <- myX.train
+#   myX.test_nzv  <- myX.test
+# }
 
 # TPM Log2 data
 nzv_Indexes_log2 <- caret::nearZeroVar(myX.train_log2) # Based only on the train set!
@@ -101,11 +101,26 @@ if (length(nzv_Indexes_log2) > 0) {
 }
 
 ###########################################################
+########################### SCALING #######################
+# Scaling needs to happen on the train set when separated, then use the same parameters on the test set, to prevent "leakage"
+
+# Scale the data
+myX.train_log2_scaled <- scale(myX.train_log2_nzv) # Scale the train data first!
+# Scale the test data based on the attributes of the scaled train data
+myX.test_log2_scaled <- scale(
+  myX.test_log2_nzv,
+  center = attr(myX.train_log2_scaled, "scaled:center"), # column means
+  scale = attr(myX.train_log2_scaled, "scaled:scale")) # column SDs
+
+
+
+
+###########################################################
 ############# INITIAL sPLS-DA ON TRAINING SET #############
 
 # Initial model
 set.seed(23)
-train.splsda <- mixOmics::splsda(myX.train_log2_nzv, myY.train, ncomp = 10) # set ncomp to 10 for performance assessment later
+train.splsda <- mixOmics::splsda(myX.train_log2_scaled, myY.train, ncomp = 10) # set ncomp to 10 for performance assessment later
 
 
 ###########################################################
@@ -117,7 +132,6 @@ train_PLSDA_1 <- plotIndiv(train.splsda , comp = 1:2,
                            ellipse = TRUE, # include 95% confidence ellipse for each class
                            legend = TRUE, 
                            title = 'W0 training set sPLSDA with confidence ellipses')
-train_PLSDA_1$graph
 # ggsave(train_PLSDA_1$graph,
 #        file = paste0("sPLSDA_TrainSet.pdf"),
 #        path = my_folderPath,
@@ -145,7 +159,7 @@ train_PLSDA_2 <- plotIndiv(train.splsda, comp = 1:2,
 # undergo performance evaluation in order to tune the number of components to use
 set.seed(23)
 perf.splsda.train <- perf(train.splsda, validation = "Mfold", 
-                          folds = my_nfolds, nrepeat = my_nrepeats, # use repeated cross-validation. folds = 3 or 5...
+                          folds = my_nfolds, nrepeat = my_nrepeats,
                           progressBar = FALSE, auc = TRUE) # include AUC values
 
 # plot the outcome of performance evaluation across all ten components
@@ -167,7 +181,7 @@ list.keepX <- c(1:10,  seq(20, 300, 10))
 
 # undergo the tuning process to determine the optimal number of variables
 set.seed(23)
-tune.splsda.train <- tune.splsda(myX.train_log2_nzv, myY.train, ncomp = 2, # calculate for first 2 components
+tune.splsda.train <- tune.splsda(myX.train_log2_scaled, myY.train, ncomp = 2, # calculate for first 2 components
                                  validation = 'Mfold',
                                  folds = my_nfolds, nrepeat = my_nrepeats, # use repeated cross-validation
                                  dist = 'max.dist', # use max.dist measure
@@ -185,21 +199,17 @@ tune.splsda.train$choice.ncomp$ncomp # what is the optimal value of components a
 
 tune.splsda.train$choice.keepX # what are the optimal values of variables according to tune.splsda()
 # comp1 comp2 
-# 270    10 
+# 170   250  
 # I think these are genes being used?
 
 # I guess I'll just use what it tells me...
 optimal.ncomp.train <- tune.splsda.train$choice.ncomp$ncomp 
-# 1
 optimal.keepX.train <- tune.splsda.train$choice.keepX[1:optimal.ncomp.train]
-# comp1 
-# 270 
+
 
 # Doesn't work when It's 1, has to at least be two
 optimal.ncomp.train <- 2
 optimal.keepX.train <- tune.splsda.train$choice.keepX[1:optimal.ncomp.train]
-# comp1 comp2 
-# 270    10 
 
 
 ###########################################################
@@ -207,7 +217,7 @@ optimal.keepX.train <- tune.splsda.train$choice.keepX[1:optimal.ncomp.train]
 
 # form final model with optimised values for component and variable count
 set.seed(23)
-final.splsda.train <- mixOmics::splsda(myX.train_log2_nzv, myY.train, 
+final.splsda.train <- mixOmics::splsda(myX.train_log2_scaled, myY.train, 
                                        ncomp = optimal.ncomp.train, 
                                        keepX = optimal.keepX.train)
 
@@ -221,7 +231,7 @@ sPLSDA_FinalModel_Comp12 <- plotIndiv(final.splsda.train , comp = c(1,2),
                                       title = 'W0 Final sPLSDA comp 1&2')
 # ggsave(sPLSDA_FinalModel_Comp12$graph,
 #        file = paste0("sPLSDA_FinalModel_TrainSet.pdf"),
-#        path = "Figures/PredictiveModeling/Mixomics_PLSDA/W0_60Cov",
+#        path = my_folderPath,
 #        width = 8, height = 5, units = "in")
 
 # use the max.dist measure to form decision boundaries between classes based on PLS-DA data
@@ -233,7 +243,7 @@ sPLSDA_FinalModel_Comp12_v2 <- plotIndiv(final.splsda.train , comp = c(1,2),
                                          legend = TRUE,
                                          title = 'W0 Final sPLSDA comp 1&2')
 # ggsave(sPLSDA_FinalModel_Comp12_v2$graph,
-#        file = paste0("sPLSDA_FinalModel_Comp12_W0.60Cov_TrainSet_v2.pdf"),
+#        file = paste0("sPLSDA2_FinalModel_TrainSet.pdf"),
 #        path = my_folderPath,
 #        width = 8, height = 5, units = "in")
 
@@ -272,7 +282,7 @@ my_list <- perf.final.splsda.train$features$stable
 my_list_df <- lapply(my_list, function(x) {
   data.frame(Feature = x)
 })
-write_xlsx(my_list_df, paste0(my_folderPath, "/Variable_Stability_Final.xlsx"))
+# write_xlsx(my_list_df, paste0(my_folderPath, "/Variable_Stability_Final.xlsx"))
 
 
 ## Correlation Circle Plot ##
@@ -287,7 +297,7 @@ plotVar(final.splsda.train, comp = c(1,2), cex = 3) # generate correlation circl
 # use the model on the Xtest set
 set.seed(23)
 predict.splsda.Mahalanobis <- predict(object = final.splsda.train, 
-                                      newdata = myX.test_log2_nzv,
+                                      newdata = myX.test_log2_scaled,
                                       dist = "mahalanobis.dist",
                                       type = "prob")
 # str(predict.splsda.Mahalanobis)
@@ -303,14 +313,14 @@ tapply(scores_Comp1, myY.test, mean)
 # Training AUC
 auc.splsda = auroc(final.splsda.train, roc.comp = 1, print = FALSE) # AUROC for the first component
 # ggsave(auc.splsda$graph,
-#        file = paste0("ROC_sPLSDA_FinalModel_TrainingSet.pdf"),
+#        file = paste0("ROC_sPLSDA_FinalModel_TrainSet.pdf"),
 #        path = my_folderPath,
 #        width = 8, height = 5, units = "in")
 auc.splsda = auroc(final.splsda.train, roc.comp = 2, print = FALSE) # AUROC for all three components
 
 # Test Set AUC
 auc.splsda <- auroc(object = final.splsda.train, 
-                    newdata = myX.test_log2_nzv, outcome.test = myY.test,
+                    newdata = myX.test_log2_scaled, outcome.test = myY.test,
                     roc.comp = 1, print = FALSE) # AUROC for all three components
 # Looked at using the other components, and just using 1 is best here... Can't figure out how to plot them all on one graph
 # ggsave(auc.splsda$graph,
@@ -333,10 +343,10 @@ train_df <- data.frame(Dim1 = train_coords[, 1],
 
 # Use predict() to get variates for test set
 set.seed(23)
-pred_test <- predict(final.splsda.train, newdata = myX.test_log2_nzv, type = "variates")
+pred_test <- predict(final.splsda.train, newdata = myX.test_log2_scaled, type = "variates")
 
 predict.splsda.Mahalanobis_variates <- predict(object = final.splsda.train, 
-                                               newdata = myX.test_nzv,
+                                               newdata = myX.test_log2_scaled,
                                                dist = "mahalanobis.dist",
                                                type = "variates")
 
