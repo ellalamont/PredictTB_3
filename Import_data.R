@@ -314,6 +314,12 @@ GoodSamples60_tpmf <- All_tpm_f %>% dplyr::select(all_of(GoodSampleList60))
 GoodSamples60_RawReadsf <- All_RawReads_f %>% dplyr::select(X, all_of(GoodSampleList60))
 
 
+###########################################################
+####################### LOG2(TPM+1) #######################
+# 3/13/26: People tend to log transform but, it just draws the eye down instead of up?
+
+GoodSputum60_tpmf_log2 <- log2(GoodSputum60_tpmf + 1)
+# max(GoodSputum60_tpmf_log2) # 14.46599
 
 ###########################################################
 ############# TPM WITH <10TPM GENES REMOVED ###############
