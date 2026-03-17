@@ -3,6 +3,7 @@
 # 1/8/26
 
 # Updated on 3/2/26 to run with the cousins removed
+# Updated on 3/17/26 to add PCA with W0->W2 change
 
 # Look into ggbiplot for more PCA stuff??
 # https://cran.r-project.org/web/packages/ggbiplot/readme/README.html
@@ -13,6 +14,7 @@
 # prcomp() is preferred according to the website above
 
 source("Import_data.R") # To get GoodSamples_tpmf and GoodSamples_pipeSummary 
+source("Delta_Weeks0to2.R") # To get BothWks_df
 
 
 # Plot basics
@@ -208,5 +210,133 @@ PCA_fig
 #        file = paste0("W2_GoodSamples_tpmf_txnCov60_v1.pdf"),
 #        path = "Figures/PCA",
 #        width = 10, height = 6, units = "in")
+
+
+###########################################################
+############### PCA ∆log2(TPM+1) W0 to W2 #################
+# 3/17/26
+
+# Convert gene column to rownames
+my_delta <- BothWks_df %>% 
+  dplyr::select(Gene, Patient, delta) %>%
+  pivot_wider(names_from = Patient, values_from = delta) %>%
+  column_to_rownames(var = "Gene")
+
+# Transform the data
+my_delta_t <- as.data.frame(t(my_delta))
+
+# Remove columns that are all zero so the scale works for prcomp
+my_delta_t2 <- my_delta_t %>% select_if(colSums(.) != 0)
+
+# Make the actual PCA
+my_PCA <- prcomp(my_delta_t2, scale = TRUE)
+
+# See the % Variance explained
+summary(my_PCA)
+summary_PCA <- format(round(as.data.frame(summary(my_PCA)[["importance"]]['Proportion of Variance',]) * 100, digits = 1), nsmall = 1) # format and round used to control the digits after the decimal place
+summary_PCA[1,1] # PC1 explains 19.7% of variance
+summary_PCA[2,1] # PC2 explains 13.7% of variance
+summary_PCA[3,1] # PC3 explains 11.4% of variance
+
+# MAKE PCA PLOT with GGPLOT 
+my_PCA_df <- as.data.frame(my_PCA$x[, 1:3]) # Extract the first 3 PCs
+my_PCA_df <- data.frame(Patient = row.names(my_PCA_df), my_PCA_df)
+my_PCA_df <- left_join(my_PCA_df, 
+                       GoodSputum60_pipeSummary %>% dplyr::select(Patient, Outcome, main_lineage, Arm), 
+                       by = "Patient", multiple = "first")
+
+PCA_fig <- my_PCA_df %>% 
+  ggplot(aes(x = PC1, y = PC2, fill = Outcome, shape = Outcome)) + 
+  geom_point(aes(fill = Outcome, shape = Outcome), size = 5, alpha = 0.8, stroke = 0.8) +
+  geom_text_repel(aes(label = Patient), size = 2.5) + 
+  scale_fill_manual(values = c(`Cure` = "#0072B2", `Relapse` = "#bc5300")) +  
+  scale_shape_manual(values = c(`Cure` = 21, `Relapse` = 21)) + 
+  # geom_text_repel(aes(label = N_Genomic), size= 2, box.padding = 0.4, segment.color = NA, max.overlaps = Inf) + 
+  labs(title = "60Cov (Run1-4): Log2(W2.TPM + 1) - Log2(W0.TPM + 1)",
+       subtitle = NULL,
+       x = paste0("PC1: ", summary_PCA[1,1], "%"),
+       y = paste0("PC2: ", summary_PCA[2,1], "%")) +
+  my_plot_themes
+PCA_fig
+# ggsave(PCA_fig,
+#        file = paste0("BothWks60Cov_Delta_Log2TPM_v1.pdf"),
+#        path = "Figures/PCA",
+#        width = 10, height = 6, units = "in")
+
+# 3D plot
+# https://plotly.com/r/pca-visualization/
+# PCA_3D <- plot_ly(my_PCA_df, x = ~PC1, y = ~PC2, z = ~PC3,
+#                   type = "scatter3d", mode = "markers",
+#                   color = ~Outcome,
+#                   colors = c("#0072B2", "#bc5300")# ,
+#                   # text = ~Replicate
+# )
+# PCA_3D
+
+
+###########################################################
+############### PCA ∆log2(TPM+1) W0 to W2 #################
+# 3/17/26
+
+# Convert gene column to rownames
+my_ratio <- BothWks_df %>% 
+  dplyr::select(Gene, Patient, Ratio) %>%
+  pivot_wider(names_from = Patient, values_from = Ratio) %>%
+  column_to_rownames(var = "Gene")
+
+# Transform the data
+my_ratio_t <- as.data.frame(t(my_ratio))
+
+# Remove columns with zero variance (had to switch how I'm doing it)
+nzv <- nearZeroVar(my_ratio_t)
+my_ratio_t2 <- my_ratio_t[, -nzv] # 4025 variables
+
+# Make the actual PCA
+my_PCA <- prcomp(my_ratio_t2, scale = TRUE)
+
+# See the % Variance explained
+summary(my_PCA)
+summary_PCA <- format(round(as.data.frame(summary(my_PCA)[["importance"]]['Proportion of Variance',]) * 100, digits = 1), nsmall = 1) # format and round used to control the digits after the decimal place
+summary_PCA[1,1] # PC1 explains 15.2% of variance
+summary_PCA[2,1] # PC2 explains 12.8% of variance
+summary_PCA[3,1] # PC3 explains 11.4% of variance
+
+# MAKE PCA PLOT with GGPLOT 
+my_PCA_df <- as.data.frame(my_PCA$x[, 1:3]) # Extract the first 3 PCs
+my_PCA_df <- data.frame(Patient = row.names(my_PCA_df), my_PCA_df)
+my_PCA_df <- left_join(my_PCA_df, 
+                       GoodSputum60_pipeSummary %>% dplyr::select(Patient, Outcome, main_lineage, Arm), 
+                       by = "Patient", multiple = "first")
+
+PCA_fig <- my_PCA_df %>% 
+  ggplot(aes(x = PC1, y = PC2, fill = Outcome, shape = Outcome)) + 
+  geom_point(aes(fill = Outcome, shape = Outcome), size = 5, alpha = 0.8, stroke = 0.8) +
+  geom_text_repel(aes(label = Patient), size = 2.5) + 
+  scale_fill_manual(values = c(`Cure` = "#0072B2", `Relapse` = "#bc5300")) +  
+  scale_shape_manual(values = c(`Cure` = 21, `Relapse` = 21)) + 
+  # geom_text_repel(aes(label = N_Genomic), size= 2, box.padding = 0.4, segment.color = NA, max.overlaps = Inf) + 
+  labs(title = "60Cov (Run1-4): W2.TPMf / W0.TPMf",
+       subtitle = NULL,
+       x = paste0("PC1: ", summary_PCA[1,1], "%"),
+       y = paste0("PC2: ", summary_PCA[2,1], "%")) +
+  my_plot_themes
+PCA_fig
+# ggsave(PCA_fig,
+#        file = paste0("BothWks60Cov_Ratio_TPMf_v1.pdf"),
+#        path = "Figures/PCA",
+#        width = 10, height = 6, units = "in")
+
+# 3D plot
+# https://plotly.com/r/pca-visualization/
+# PCA_3D <- plot_ly(my_PCA_df, x = ~PC1, y = ~PC2, z = ~PC3,
+#                   type = "scatter3d", mode = "markers",
+#                   color = ~Outcome,
+#                   colors = c("#0072B2", "#bc5300")# ,
+#                   # text = ~Replicate
+# )
+# PCA_3D
+
+
+
 
 

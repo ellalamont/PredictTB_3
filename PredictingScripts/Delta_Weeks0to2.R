@@ -20,6 +20,8 @@ BothWk_SampleList <- BothWk_pipeSummary %>% pull(SampleID)
 
 BothWk_tpmf_log2 <- GoodSputum60_tpmf_log2 %>% dplyr::select(all_of(BothWk_SampleList))
 
+BothWk_tpmf <- GoodSputum60_tpmf %>% dplyr::select(all_of(BothWk_SampleList))
+
 
 ###########################################################
 ######################### ∆ DELTA #########################
@@ -34,11 +36,23 @@ BothWk_log2TPMf_delta <- BothWk_tpmf_log2 %>%
   dplyr::rename(W0_log2TPMf = "Week 0", W2_log2TPMf = "Week 2") %>%
   mutate(delta = W2_log2TPMf - W0_log2TPMf)
 
+###########################################################
+######################## TPM RATIO ########################
+
+options(scipen = 999)
+BothWk_TPMf_ratio <- BothWk_tpmf %>%
+  rownames_to_column("Gene") %>% 
+  pivot_longer(-Gene, names_to = "SampleID", values_to = "TPMf") %>%
+  left_join(BothWk_pipeSummary %>% dplyr::select(SampleID, Week, Patient, Outcome),
+            by = "SampleID") %>%
+  pivot_wider(id_cols = c(Gene, Patient, Outcome), 
+              names_from = Week, values_from = TPMf) %>%
+  dplyr::rename(W0_TPMf = "Week 0", W2_TPMf = "Week 2") %>%
+  mutate(Ratio = (W2_TPMf+0.1) / (W0_TPMf+0.1)) # Had to add 0.1 to avoid inf with dividing by 0
 
 
+###########################################################
+####################### COMBINE DFs #######################
 
-
-
-
-
-
+BothWks_df <- BothWk_log2TPMf_delta %>% 
+  left_join(BothWk_TPMf_ratio, by = c("Gene", "Patient", "Outcome"))
