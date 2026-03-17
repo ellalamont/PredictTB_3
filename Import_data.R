@@ -396,8 +396,8 @@ W0_Metadata <- W0_pipeSummary %>% dplyr::select(SampleID, Week, Patient, Outcome
 stopifnot(setequal(W0_Metadata$SampleID, colnames(W0_tpmf)))
 
 # Save as csv
-write.csv(W0_tpmf, "Data/ForEvanJohnson/W0TPM_20260203.csv")
-write.csv(W0_Metadata, "Data/ForEvanJohnson/W0Metadata_20260203.csv", row.names = F)
+# write.csv(W0_tpmf, "Data/ForEvanJohnson/W0TPM_20260203.csv")
+# write.csv(W0_Metadata, "Data/ForEvanJohnson/W0Metadata_20260203.csv", row.names = F)
 
 colSums(W0_tpmf)
 
