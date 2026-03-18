@@ -56,3 +56,25 @@ BothWk_TPMf_ratio <- BothWk_tpmf %>%
 
 BothWks_df <- BothWk_log2TPMf_delta %>% 
   left_join(BothWk_TPMf_ratio, by = c("Gene", "Patient", "Outcome"))
+
+
+
+
+###########################################################
+#######################  #######################
+
+gene_stats <- BothWk_log2TPMf_delta %>%
+  drop_na(delta) %>%
+  group_by(Gene) %>%
+  summarise(
+    p = t.test(delta ~ Outcome)$p.value,
+    effect = mean(delta[Outcome == "Relapse"]) -
+      mean(delta[Outcome == "Cure"])
+  ) %>%
+  mutate(p_adj = p.adjust(p, method = "BH"))
+
+
+
+
+
+
