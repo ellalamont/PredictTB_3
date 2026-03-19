@@ -16,6 +16,7 @@ parent_dir <- "Data/DE_Run1to4_60TxnCov"
 
 folders <- list.dirs(parent_dir, full.names = T, recursive = F)
 folders <- folders[!grepl("GeneSets", basename(folders))] # Remove the folders containing GeneSets because these are duplicates for the DEG
+folders <- folders[!grepl("TAR", basename(folders))] # Remove the folders containing GeneSets because these are duplicates for the DEG
 
 # Function to get the JOINED.txt files from each folder
 list_dfs <- lapply(folders, function(f) {
