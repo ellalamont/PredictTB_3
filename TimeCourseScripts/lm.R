@@ -100,7 +100,7 @@ names(ranked_genes_vec) <- ranked_genes$Gene
 ranked_genes_vec <- sort(ranked_genes_vec, decreasing = TRUE)
 
 # Load custom gene sets. Needs to have columns Gene, GeneSet. Will take from allGeneSetList
-custom_list <- allGeneSetList[["EllaGeneSets_2026.01.30"]]
+custom_list <- allGeneSetList[["EllaGeneSets_2026.03.19"]]
 
 fgsea_res <- fgsea(
   pathways = custom_list,
@@ -109,16 +109,10 @@ fgsea_res <- fgsea(
 )
 
 # Warning message:
-#   In preparePathwaysAndStats(pathways, stats, minSize, maxSize, gseaParam,  :
-#                                There are ties in the preranked stats (0.02% of the list).
-#                              The order of those tied genes will be arbitrary, which may produce unexpected results.
+# In preparePathwaysAndStats(pathways, stats, minSize, maxSize, gseaParam :There are ties in the preranked stats (0.02% of the list). The order of those tied genes will be arbitrary, which may produce unexpected results.
 
-# NES>0 is enriched in Relapse??
-# NES<0 is enriched in Cure??
-
-
-# Pick one pathway
-plotEnrichment(custom_list[["dosR regulon"]], ranked_genes_vec)
+# NES>0 is enriched in Relapse
+# NES<0 is enriched in Cure
 
 fgsea_res %>%
   filter(pval < 0.05) %>%
@@ -146,7 +140,7 @@ facet_themes <- theme(strip.background=element_rect(fill="white", linewidth = 0.
                       strip.text = element_text(size = 7))
 
 # Need this for facet grouping
-EllaGeneSets_2026.01.30 <- read.csv("Data/GeneSet_Data/EllaGeneSets_2026.01.30.csv")
+EllaGeneSets_2026.03.19 <- read.csv("Data/GeneSet_Data/EllaGeneSets_2026.03.19.csv")
 
 # Add some useful columns
 fgsea_res2 <- fgsea_res %>%
@@ -155,7 +149,7 @@ fgsea_res2 <- fgsea_res %>%
                                FDR_Significance == "significant" & NES < 0 ~ "neg",
                                TRUE ~ "ns"),
          PathName_2 = paste0(pathway, " (n=", size, ")")) %>%
-  left_join(EllaGeneSets_2026.01.30 %>% # Add the Group names
+  left_join(EllaGeneSets_2026.03.19 %>% # Add the Group names
               dplyr::rename(pathway = GeneSet) %>%
               dplyr::select(pathway, Group) %>% 
               distinct(pathway, .keep_all = TRUE),
@@ -178,13 +172,29 @@ my_bubblePlot <- fgsea_res2 %>%
   my_plot_themes + facet_themes + theme(legend.position = "none")
 my_bubblePlot
 ggsave(my_bubblePlot,
-       file = paste0("Delta_lm_v1", ".pdf"),
+       file = paste0("Delta_lm_v2", ".pdf"),
        path = "Figures/TimeCourse/Bubbles",
        width = 8, height = 8, units = "in")
 
 
 
+################################################
+################# OTHER GSEA ###################
 
+fgsea_res_GO.BiolProc <- fgsea(
+  pathways = allGeneSetList$MTb.GO.BiologicalProcess,
+  stats = ranked_genes_vec,
+  minSize = 3)
+
+fgsea_res_GO.CellComp <- fgsea(
+  pathways = allGeneSetList$MTb.GO.CellularComponent,
+  stats = ranked_genes_vec,
+  minSize = 3)
+
+fgsea_res_GO.MolFunc <- fgsea(
+  pathways = allGeneSetList$MTb.GO.MolecularFunction,
+  stats = ranked_genes_vec,
+  minSize = 3)
 
 
 
