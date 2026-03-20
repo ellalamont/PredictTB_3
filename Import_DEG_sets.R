@@ -87,7 +87,7 @@ for (i in 1:length(list_dfs_f)) {
 
 ###########################################################
 ############# IMPORT BOB's METAGENESETS DATA ##############
-# 2/20/26: updated to be cleaner import
+# 3/19/26: updated to be cleaner import
 
 clean_pathname <- function(x) {
   x %>%
@@ -123,3 +123,30 @@ names(list_GeneSets) <- paste0(basename(folders))
 
 # Also make a list of the names
 list_GeneSets_names <- names(list_GeneSets)
+
+# Add extra DE columns to each dataframe
+list_GeneSets2 <- list()
+for (i in 1:length(list_GeneSets)) {
+  
+  current_df <- list_GeneSets[[i]]
+  current_df_name <- list_GeneSets_names[i]
+  
+  current_df <- current_df %>%
+    mutate(Significance = ifelse(AVG_PVALUE < 0.05, "significant", "not significant"),
+           FillColor = case_when(Significance == "significant" & LOG2FOLD > 0 ~ "pos",
+                               Significance == "significant" & LOG2FOLD < 0 ~ "neg",
+                               TRUE ~ "ns"),
+           PathName_2 = paste0(PathName, " (n=", N_Genes, ")"))
+  
+  list_GeneSets2[[current_df_name]] <- current_df
+} 
+
+
+
+
+
+
+
+
+
+
