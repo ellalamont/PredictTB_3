@@ -56,7 +56,7 @@ allGeneSetList <- lapply(allGeneSetList, function(gset) {
 # allGeneSets <- split(EllaGeneSets_2026.01.30$Gene, EllaGeneSets_2026.01.30$GeneSet)
 # save(allGeneSets, file = "Data/GeneSet_Data/EllaGeneSets_2026.01.30.rda")
 
-# 3/19/26 : Removed Lance's old genes and added nutrient starvation set
+# 3/19/26 : Removed Lance's old genes and added nutrient starvation set and iModulons
 # EllaGeneSets_2026.03.19 <- read.csv("Data/GeneSet_Data/EllaGeneSets_2026.03.19.csv")
 # allGeneSets <- split(EllaGeneSets_2026.03.19$Gene, EllaGeneSets_2026.03.19$GeneSet)
 # save(allGeneSets, file = "Data/GeneSet_Data/EllaGeneSets_2026.03.19.rda")
