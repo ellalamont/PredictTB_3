@@ -89,24 +89,37 @@ for (i in 1:length(list_dfs_f)) {
 ############# IMPORT BOB's METAGENESETS DATA ##############
 # 2/20/26: updated to be cleaner import
 
+clean_pathname <- function(x) {
+  x %>%
+    str_replace_all("&nbsp;", " ") %>%
+    str_remove_all("<.*?>") %>%
+    str_remove_all("\\(.*?\\)") %>%
+    str_trim()
+}
+
 parent_dir <- "Data/DE_Run1to4_60TxnCov"
 folders <- list.dirs(parent_dir, full.names = T, recursive = F)
 
 # Function to get the UP.txt files from each folder
 list_GeneSets <- lapply(folders, function(f) {
   
-  # Find the UP file inside each folder
-  current_file <- list.files(f, pattern = "\\.UP\\.txt$", full.names = T)
+  current_file <- list.files(f, pattern = "\\.UP\\.txt$", full.names = TRUE)
   
-  # Read in the file
-  if (length(current_file) == 1) {
-    read.delim(current_file)
-  } else {NULL}
-}
-)
+  if (length(current_file) != 1) return(NULL)
+  
+  df <- read.delim(current_file)
+  
+  if ("PathName" %in% colnames(df)) {
+    df <- df %>%
+      dplyr::mutate(PathName = clean_pathname(PathName))
+  }
+  
+  return(df)
+})
+
 
 # Add the names to the list of lists
-names(list_GeneSets) <- paste0("GeneSets_", basename(folders))
+names(list_GeneSets) <- paste0(basename(folders))
 
 # Also make a list of the names
 list_GeneSets_names <- names(list_GeneSets)
