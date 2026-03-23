@@ -32,9 +32,10 @@ Current_GeneSet_df <- read.csv(paste0("Data/GeneSet_Data/", CurrentGeneSet, ".cs
 Current_GeneSet_df %>% select(GeneSet) %>% unique()
 
 # Needs to match the GeneSets names
-myGeneSet <- "Enduring hypoxic response"
+# myGeneSet <- "Enduring hypoxic response"
 # myGeneSet <- "dosR regulon"
 # myGeneSet <- "Non-specific stress responses"
+myGeneSet <- "Toxin - antitoxin"
 myGenes <- Current_GeneSet_df %>% filter(GeneSet == myGeneSet) %>% pull(Gene)
 
 ###########################################################
