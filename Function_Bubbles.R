@@ -1,4 +1,4 @@
-makeBubble_EL <- function(df, myTitle = "Bubble Plot") {
+makeBubble_EL <- function(df, title = NULL, subtitle = NULL, x_min = NULL, x_max = NULL) {
   
   ## Taking a modified MetaGeneSet file from Bob's pipeline and making a bubble from it
   
@@ -16,7 +16,7 @@ makeBubble_EL <- function(df, myTitle = "Bubble Plot") {
   facet_themes <- theme(strip.background=element_rect(fill="white", linewidth = 0.9),
                         strip.text = element_text(size = 7))
   
-  my_bubblePlot <- myBubble_df %>% 
+  p <- df %>% 
     ggplot(aes(x = LOG2FOLD, y = PathName_2)) + 
     geom_point(aes(stroke = ifelse(Significance == "significant", 0.8, 0),
                    fill = FillColor),
@@ -25,14 +25,17 @@ makeBubble_EL <- function(df, myTitle = "Bubble Plot") {
     facet_grid(rows = vars(Group_wrapped), scales = "free_y", space = "free") + 
     guides(shape = "none") + 
     geom_vline(xintercept = 0) + 
-    labs(title = myTitle, 
+    labs(title = title, subtitle = subtitle,
          y = NULL, x = "Log2Fold change") + 
     my_plot_themes + facet_themes + theme(legend.position = "none")
   
-  return(my_bubblePlot)
+  # Add scale if entered
+  if(!is.null(x_min) & !is.null(x_max)) {
+    p <- p + 
+      scale_x_continuous(limits = c(x_min, x_max), 
+                         breaks = seq(ceiling(x_min), floor(x_max), by = 1))
+  }
   
-  
-  
-  
+  return(p)
   
 }
