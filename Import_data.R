@@ -403,6 +403,26 @@ GoodSputum60_W2_tpmf <- GoodSputum60_tpmf %>%
 
 # write.csv(GoodSputum60_W2_tpmf, "Data/ForHassan/W2TPM_20260312.csv")
 
+
+###########################################################
+################## EXPORT RAW READ INFO ###################
+
+# 2/3/26 For Evan/Howard: Want All the W0
+W0_RawReadsf <- All_tpm_f %>% dplyr::select(any_of(my_pipeSummary$SampleID2)) %>%
+  dplyr::select(contains("W0"))
+W0_pipeSummary <- my_pipeSummary %>% filter(SampleID2 %in% colnames(W0_RawReadsf))
+
+# Clean up the names
+names(W0_RawReadsf) <- sub("^Run[0-9]+_", "", names(W0_RawReadsf))
+W0_pipeSummary$SampleID <- gsub(pattern = "_S[0-9]+$", replacement = "", x = W0_pipeSummary$SampleID)
+W0_Metadata <- W0_pipeSummary %>% dplyr::select(SampleID, Week, Patient, Outcome, Arm, main_lineage)
+# Check the tpm and metadata have the same samples
+stopifnot(setequal(W0_Metadata$SampleID, colnames(W0_RawReadsf)))
+
+# Save as csv
+# write.csv(W0_RawReadsf, "Data/ForEvanJohnson/W0RawReads_20260326.csv")
+# write.csv(W0_Metadata, "Data/ForEvanJohnson/W0Metadata_20260203.csv", row.names = F)
+
 ###########################################################
 ####################### LOG2(TPM+1) #######################
 # 3/13/26: People tend to log transform but, it just draws the eye down instead of up?
