@@ -6,35 +6,40 @@ source("Function_Volcano.R")
 
 
 # 3/20/26: Try with the volcano function I made
-W2_CvsR_plot <- makeVolcano_EL(list_dfs_f2$W2.cure_vs_W2.relapse, "W2.cure_vs_W2.relapse", DE_limit = 2)
+# 4/1/26 Trying again with new function
+W2_CvsR_plot <- makeVolcano_EL(list_dfs_f2$W2.cure_vs_W2.relapse, "W2.cure_vs_W2.relapse", 
+                               DE_limit = 2, x_max = 6.2, x_min = -6.2)
 W2_CvsR_plot
-ggsave(W2_CvsR_plot,
-       file = paste0("W2.cure_vs_W2.relapse", "_PacTB_v1.png"),
-       path = "Figures/Volcano_60TxnCov/PacTB2026",
+ggsave(plot = W2_CvsR_plot,
+       file = paste0("W2.cure_vs_W2.relapse", "_PacTB_v2.png"),
+       # path = "Figures/Volcano_60TxnCov/PacTB2026",
        dpi = 600,
        width = 7, height = 5, units = "in")
 
-W0_CvsR_plot <- makeVolcano_EL(list_dfs_f2$W0.cure_vs_W0.relapse, "W0.cure_vs_W0.relapse", DE_limit = 2)
+W0_CvsR_plot <- makeVolcano_EL(list_dfs_f2$W0.cure_vs_W0.relapse, "W0.cure_vs_W0.relapse", 
+                               DE_limit = 2, x_max = 6.2, x_min = -6.2)
 W0_CvsR_plot
 ggsave(W0_CvsR_plot,
-       file = paste0("W0.cure_vs_W0.relapse", "_PacTB_v1.png"),
-       path = "Figures/Volcano_60TxnCov/PacTB2026",
+       file = paste0("W0.cure_vs_W0.relapse", "_PacTB_v2.png"),
+       # path = "Figures/Volcano_60TxnCov/PacTB2026",
        dpi = 600,
        width = 7, height = 5, units = "in")
 
-W0_vs_Ra_plot <- makeVolcano_EL(list_dfs_f2$W0_vs_Ra, "W0_vs_Ra", DE_limit = 2)
+W0_vs_Ra_plot <- makeVolcano_EL(list_dfs_f2$W0_vs_Ra, "W0_vs_Ra", 
+                                DE_limit = 2, x_max = 6.2, x_min = -6.2)
 W0_vs_Ra_plot
 ggsave(W0_vs_Ra_plot,
-       file = paste0("W0_vs_Ra", "_PacTB_v1.png"),
-       path = "Figures/Volcano_60TxnCov/PacTB2026",
+       file = paste0("W0_vs_Ra", "_PacTB_v2.png"),
+       # path = "Figures/Volcano_60TxnCov/PacTB2026",
        dpi = 600,
        width = 7, height = 5, units = "in")
 
-W2_vs_Ra_plot <- makeVolcano_EL(list_dfs_f2$W2_vs_Ra, "W2_vs_Ra", DE_limit = 2)
+W2_vs_Ra_plot <- makeVolcano_EL(list_dfs_f2$W2_vs_Ra, "W2_vs_Ra", 
+                                DE_limit = 2, x_max = 6.2, x_min = -6.2)
 W2_vs_Ra_plot
 ggsave(W2_vs_Ra_plot,
-       file = paste0("W2_vs_Ra", "_PacTB_v1.png"),
-       path = "Figures/Volcano_60TxnCov/PacTB2026",
+       file = paste0("W2_vs_Ra", "_PacTB_v2.png"),
+       # path = "Figures/Volcano_60TxnCov/PacTB2026",
        dpi = 600,
        width = 7, height = 5, units = "in")
 
