@@ -131,8 +131,13 @@ for (i in 1:length(list_GeneSets)) {
   current_df <- list_GeneSets[[i]]
   current_df_name <- list_GeneSets_names[i]
   
+  if (is.null(current_df)) {
+    message(paste("Skipping NULL at index", i, "-", current_df_name))
+    next
+  }
+  
   current_df <- current_df %>%
-    mutate(Significance = ifelse(AVG_PVALUE < 0.05, "significant", "not significant"),
+    dplyr::mutate(Significance = ifelse(AVG_PVALUE < 0.05, "significant", "not significant"),
            FillColor = case_when(Significance == "significant" & LOG2FOLD > 0 ~ "pos",
                                Significance == "significant" & LOG2FOLD < 0 ~ "neg",
                                TRUE ~ "ns"),
