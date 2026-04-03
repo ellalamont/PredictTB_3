@@ -90,8 +90,9 @@ PCA_fig <- my_PCA_df %>%
   my_plot_themes
 PCA_fig
 # ggsave(PCA_fig,
-#        file = paste0("GoodSamples_tpmf_txnCov60_v1.pdf"),
+#        file = paste0("GoodSamples_tpmf_txnCov60_v2.png"),
 #        path = "Figures/PCA",
+#        dpi = 600,
 #        width = 10, height = 6, units = "in")
 
 # Assuming PC1 is mostly drug response, look at PC2 and PC3

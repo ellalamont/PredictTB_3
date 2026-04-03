@@ -44,7 +44,12 @@ ggsave(W2_vs_Ra_plot,
        width = 7, height = 5, units = "in")
 
 
-
+W0_CvsR_subset_plot <- makeVolcano_EL(list_dfs_f2$W0.Relapse_vs_Cure_W2Subset, "W0.Relapse_vs_Cure_W2Subset", DE_limit = 2, x_max = 6.2, x_min = -6.2)
+W0_CvsR_subset_plot
+ggsave(W0_CvsR_subset_plot,
+       file = paste0("W0.cure_vs_W0.relapse_W2Subset", "_v1.pdf"),
+       path = "Figures/Volcano_60TxnCov",
+       width = 7, height = 5, units = "in")
 
 
 
