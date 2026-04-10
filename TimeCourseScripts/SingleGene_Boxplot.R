@@ -14,8 +14,8 @@ my_plot_themes <- theme_bw() +
         legend.title = element_blank(),
         plot.title = element_text(size=10), 
         axis.title.x = element_blank(), 
-        # axis.text.x = element_text(angle = 0, size=14, vjust=0, hjust=0.5),
-        axis.text.x = element_text(angle = 45, size=10, vjust=1, hjust=1),
+        axis.text.x = element_text(angle = 0, size=10, vjust=0, hjust=0.5),
+        # axis.text.x = element_text(angle = 45, size=10, vjust=1, hjust=1),
         axis.title.y = element_text(size=10),
         axis.text.y = element_text(size=10), 
         plot.subtitle = element_text(size=9))
@@ -32,7 +32,12 @@ my_fav_colors <- c(`Cure` = "#0072B2", `Relapse` = "#bc5300")
 ######################  CHOOSE GENE  ######################
 
 # myGene <- "Rv2557"
-myGene <- "Rv2703"
+# myGene <- "Rv2703"
+# myGene <- "Rv2031c"
+# myGene <- "Rv3378c"
+# myGene <- "Rv3377c"
+# myGene <- "Rv1339"
+myGene <- "Rv2623"
 
 ###########################################################
 ######################  PROCESS DATA  #####################
@@ -50,13 +55,12 @@ my_tpmf <- GoodSamples60_tpmf %>%
 
 my_TPM_Boxplot <- my_tpmf %>%
   ggplot(aes(x = Outcome, y = TPM)) +
-  # ggplot(aes(x = Outcome, y = log2(TPM+1))) +
   geom_boxplot(aes(fill = Outcome), width = 0.6, outlier.size = 0.9, alpha = 0.4) +
-  geom_point(alpha = 0.8, size = 1.7, position = position_jitter(0.2)) +
+  geom_point(alpha = 0.8, size = 1.3, position = position_jitter(0.2)) +
   facet_grid(~ Week, scales = "free") +
   stat_compare_means(aes(group = Outcome), method = "t.test", paired = F, label = "p.format", size = 3, label.x = 1.4) +
   scale_fill_manual(values=my_fav_colors) +
-  stat_summary(fun = mean, geom = "point", shape = 23, size = 3, fill = "red") +
+  stat_summary(fun = mean, geom = "point", shape = 23, size = 2, fill = "red") +
   labs(title = myGene,
        subtitle = "Two-sample t-test. Mean is red diamond",
        x = "Oucome",
@@ -74,28 +78,36 @@ my_TPM_Boxplot
 my_log2.TPM_Boxplot <- my_tpmf %>% 
   ggplot(aes(x = Outcome, y = log2(TPM+1))) + 
   geom_boxplot(aes(fill = Outcome), width = 0.6, outlier.size = 0.9, alpha = 0.4) + 
-  geom_point(alpha = 0.8, size = 1.7, position = position_jitter(0.2)) + 
+  geom_point(alpha = 0.8, size = 1.3, position = position_jitter(0.2)) + 
+  # geom_text_repel(aes(label = SampleID2), size= 2.5, box.padding = 0.4, segment.color = NA, max.overlaps = Inf) + 
   facet_grid(~ Week, scales = "free") +
   stat_compare_means(aes(group = Outcome), method = "t.test", paired = F, label = "p.format", size = 3, label.x = 1.4) + 
   scale_fill_manual(values=my_fav_colors) +  
-  stat_summary(fun = mean, geom = "point", shape = 23, size = 3, fill = "red") + 
+  stat_summary(fun = mean, geom = "point", shape = 23, size = 2, fill = "red") + 
   labs(title = myGene,
        subtitle = "Two-sample t-test. Mean is red diamond", 
        x = "Oucome", 
        y = "log2(TPM+1)") + 
   my_plot_themes + facet_themes
 my_log2.TPM_Boxplot
-ggsave(my_log2.TPM_Boxplot,
-       file = paste0(myGene, "_log2.pdf"),
+# ggsave(my_log2.TPM_Boxplot,
+#        file = paste0(myGene, "_log2.pdf"),
+#        path = "Figures/Gene_Boxplots",
+#        width = 6, height = 4, units = "in")
+
+
+###########################################################
+#####################  COMBINE PLOTS  #####################
+
+# library(cowplot)
+combined_plot <- plot_grid(my_TPM_Boxplot,
+                           my_log2.TPM_Boxplot,
+                           ncol = 1)
+combined_plot
+ggsave(combined_plot,
+       file = paste0(myGene, ".pdf"),
        path = "Figures/Gene_Boxplots",
-       width = 6, height = 4, units = "in")
-
-
-
-
-
-
-
+       width = 6, height = 6.5, units = "in")
 
 
 
