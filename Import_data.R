@@ -423,6 +423,24 @@ stopifnot(setequal(W0_Metadata$SampleID, colnames(W0_RawReadsf)))
 # write.csv(W0_RawReadsf, "Data/ForEvanJohnson/W0RawReads_20260326.csv")
 # write.csv(W0_Metadata, "Data/ForEvanJohnson/W0Metadata_20260203.csv", row.names = F)
 
+# 4/6/26: Transpose the metadata for iDEP
+W0_Metadata_t <- as.data.frame(t(W0_Metadata))
+colnames(W0_Metadata_t) <- W0_Metadata_t[1, ]
+W0_Metadata_t <- W0_Metadata_t[-1, ]
+# write.csv(W0_Metadata_t, "Data/For_iDEP/W0Metadata_t_20260203.csv", row.names = T)
+
+
+# 4/7/26: All the Good sputum (W0 and W2)
+GoodSputum60_RawReadsf <- All_tpm_f %>% dplyr::select(any_of(GoodSputum60_pipeSummary$SampleID2))
+names(GoodSputum60_RawReadsf) <- sub("^Run[0-9]+_", "", names(GoodSputum60_RawReadsf))
+# Check the tpm and metadata have the same samples
+stopifnot(setequal(GoodSputum60_Metadata$SampleID, colnames(GoodSputum60_RawReadsf)))
+GoodSputum60_Metadata_t <- as.data.frame(t(GoodSputum60_Metadata))
+colnames(GoodSputum60_Metadata_t) <- GoodSputum60_Metadata_t[1, ]
+GoodSputum60_Metadata_t <- GoodSputum60_Metadata_t[-1, ]
+# write.csv(GoodSputum60_Metadata_t, "Data/For_iDEP/GoodSputum60_Metadata_t_20260407.csv", row.names = T)
+# write.csv(GoodSputum60_RawReadsf, "Data/For_iDEP/GoodSputum60_RawReadsf_20260407.csv", row.names = T)
+
 ###########################################################
 ####################### LOG2(TPM+1) #######################
 # 3/13/26: People tend to log transform but, it just draws the eye down instead of up?
