@@ -338,6 +338,62 @@ PCA_fig
 # PCA_3D
 
 
+###########################################################
+############# PCA GOODSAMPLES LOG2(TPM+1) 60% #############
+# 4/13/26
+# >60% genes with at least 10 reads, already subsetted in Import_data.R
+# Rv GENES ONLY INCLUDED IN TXN COVERAGE
 
+# Log2 transform
+GoodSamples60_tpmf_log2 <- log2(GoodSamples60_tpmf + 1)
+
+# Convert gene column to rownames
+my_tpm <- GoodSamples60_tpmf_log2 %>% # column_to_rownames(var = "X")
+  dplyr::select(!contains("THP1")) # Remove the spiked samples
+
+# Keep genes with >5 tpm (should be using counts!) in at least 50% of samples 
+# 1/16/26: Not doing this now but maybe should?? Doesn't really change what the graph looks like
+# keep <- rowSums(my_tpm > 5) >= 0.5 * ncol(my_tpm)
+# my_tpm2 <- my_tpm[keep, ] # now only 3948 genes (instead of 4030)
+
+# Transform the data
+my_tpm_t <- as.data.frame(t(my_tpm)) # or my_tpm2
+
+# Remove columns that are all zero so the scale works for prcomp
+my_tpm_t2 <- my_tpm_t %>% select_if(colSums(.) != 0)
+
+# Make the actual PCA
+my_PCA <- prcomp(my_tpm_t2, scale = TRUE)
+
+# See the % Variance explained
+summary(my_PCA)
+summary_PCA <- format(round(as.data.frame(summary(my_PCA)[["importance"]]['Proportion of Variance',]) * 100, digits = 1), nsmall = 1) # format and round used to control the digits after the decimal place
+summary_PCA[1,1] # PC1 explains 22.8% of variance
+summary_PCA[2,1] # PC2 explains 8.8% of variance
+summary_PCA[3,1] # PC3 explains 6.8% of variance
+
+# MAKE PCA PLOT with GGPLOT 
+my_PCA_df <- as.data.frame(my_PCA$x[, 1:3]) # Extract the first 3 PCs
+my_PCA_df <- data.frame(SampleID2 = row.names(my_PCA_df), my_PCA_df)
+my_PCA_df <- merge(my_PCA_df, GoodSamples60_pipeSummary, by = "SampleID2")
+
+PCA_fig <- my_PCA_df %>% 
+  ggplot(aes(x = PC1, y = PC2, fill = Type2, shape = Type2)) + 
+  geom_point(aes(fill = Type2, shape = Type2), size = 5, alpha = 0.8, stroke = 0.8) +
+  # geom_text_repel(aes(label = Lineage), size = 2.5) + 
+  scale_fill_manual(values = my_fav_colors) +  
+  scale_shape_manual(values = my_fav_shapes) + 
+  # geom_text_repel(aes(label = Patient), size= 2, box.padding = 0.4, segment.color = "black", max.overlaps = Inf) + 
+  labs(title = "PCA: >60% genes with at least 10 reads (Run1-4)",
+       subtitle = "Log2(TPM+1) filtered (Rv genes only)",
+       x = paste0("PC1: ", summary_PCA[1,1], "%"),
+       y = paste0("PC2: ", summary_PCA[2,1], "%")) +
+  my_plot_themes
+PCA_fig
+# ggsave(PCA_fig,
+#        file = paste0("GoodSamples_Log2tpmf_v1.pdf"),
+#        path = "Figures/PCA",
+#        dpi = 600,
+#        width = 10, height = 6, units = "in")
 
 
