@@ -307,13 +307,19 @@ meta_W2 <- GoodSputum60_Metadata %>% filter(Week == "Week 2")
 samples_W2 <- meta_W2$SampleID
 log2TPM_W2 <- GoodSputum60_tpmf_log2[, samples_W2]
 
-log2TPM_W2_t <- t(log2TPM_W2)
+# remove genes with zero variance
+log2TPM_W2_f <- log2TPM_W2[apply(log2TPM_W2, 1, var) != 0, ]
+# Now only 4024 genes
+
+log2TPM_W2_t <- t(log2TPM_W2_f)
 
 # Make a distance matrix
 dist_W2 <- vegdist(log2TPM_W2_t, method = "euclidean")
+# dist_W2 <- vegdist(log2TPM_W2_t, method = "bray")
 
 # Run PERMDISP
 bd_W2 <- betadisper(dist_W2, meta_W2$Outcome)
+bd_W2
 # Homogeneity of multivariate dispersions
 # 
 # Call: betadisper(d = dist_W2, group = meta_W2$Outcome)
@@ -351,6 +357,7 @@ plot_df_W2 <- data.frame(
 
 ###########################################################
 ################# W2 Log2(TPM) CORRELATION ################
+# ** THIS ONE **
 
 meta_W2 <- GoodSputum60_Metadata %>% filter(Week == "Week 2")
 
@@ -364,6 +371,7 @@ log2TPM_W2_f <- log2TPM_W2[apply(log2TPM_W2, 1, var) != 0, ]
 # Make a correlation distance matrix
 cor_mat_W2 <- cor(log2TPM_W2_f, method = "pearson")
 dist_W2 <- as.dist(1 - cor_mat_W2)
+
 
 # Run PERMDISP
 bd_W2 <- betadisper(dist_W2, meta_W2$Outcome, type = "centroid", add = TRUE)
@@ -444,7 +452,16 @@ plot_df_W2 <- data.frame(
   Week = "W2")
 
 
+### Trying with the equation from https://stats.stackexchange.com/questions/165194/using-correlation-as-distance-metric-for-hierarchical-clustering ##
+# dist2_W2 <- as.dist(sqrt(2*(1 - cor_mat_W2)))
+dist2_W2 <- as.dist(sqrt(1 - cor_mat_W2))
+bd2_W2 <- betadisper(dist2_W2, meta_W2$Outcome, type = "centroid", add = FALSE)
+bd2_W2
+permutest(bd2_W2)
+# This also works?
+
 ### CAP ###
+# Not sure what is going on here......
 cap_W2 <- capscale(dist_W2 ~ Outcome, data = meta_W2)
 plot(cap_W2)
 anova(cap_W2, permutations = 999)
