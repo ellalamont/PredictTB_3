@@ -447,3 +447,19 @@ GoodSputum60_Metadata_t <- GoodSputum60_Metadata_t[-1, ]
 
 GoodSputum60_tpmf_log2 <- log2(GoodSputum60_tpmf + 1)
 # max(GoodSputum60_tpmf_log2) # 14.46599
+
+###########################################################
+#################### LIST OF W0 SUBSET ####################
+# 4/14/26
+# The W0 that we also have W2 for
+
+W0_subset_names <- c("W0_12010", "W0_11011", "W0_11012", "W0_11031", "W0_12020", "W0_12008", "W0_12084", "W0_13016", "W0_12019", "W0_12073", "W0_13012", "W0_13041", "W0_14005")
+
+
+
+
+
+
+
+
+
