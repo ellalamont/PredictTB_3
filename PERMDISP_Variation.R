@@ -9,6 +9,17 @@
 # "PERMDISP is a multivariate extension of Levene’s test (Anderson 2006) to examine whether groups differ in plot-to-plot variability"
 # "In essence, PERMDISP involves calculating the distance from each data point to its group centroid and then testing whether those distances differ among the groups."
 
+my_plot_themes <- theme_bw() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  theme(legend.position = "right",legend.text=element_text(size=14),
+        # legend.title = element_text(size = 14),
+        legend.title = element_blank(),
+        plot.title = element_text(size=10), 
+        axis.title.x = element_text(size=14), 
+        axis.text.x = element_text(angle = 0, size=14, vjust=0, hjust=0.5),
+        axis.title.y = element_text(size=14),
+        axis.text.y = element_text(size=14), 
+        plot.subtitle = element_text(size=9))
 
 source("Import_data.R")
 # GoodSputum60_tpmf_log2
@@ -75,6 +86,9 @@ plot_df_W0 <- data.frame(
 
 meta_W0 <- GoodSputum60_Metadata %>% filter(Week == "Week 0")
 
+# If only want to look at the ones that have matching W2, do this:
+meta_W0 <- meta_W0 %>% dplyr::filter(SampleID %in% W0_subset_names) 
+
 samples_W0 <- meta_W0$SampleID
 log2TPM_W0 <- GoodSputum60_tpmf_log2[, samples_W0]
 
@@ -107,6 +121,7 @@ bd_W0
 # 0.4859 0.3470 0.2508 0.1985 0.1786 0.1659 0.1489 0.1434 
 
 permutest(bd_W0)
+permutest_bd_W0 <- permutest(bd_W0)
 # Permutation test for homogeneity of multivariate dispersions
 # Permutation: free
 # Number of permutations: 999
@@ -151,10 +166,56 @@ adonis2(dist(bd_W0$distances) ~ meta_W0$Outcome)
 # Residual 41 0.199749 0.94322              
 # Total    42 0.211774 1.00000  
 
-plot_df_W0 <- data.frame(
-  distance = bd_W0$distances,
-  Outcome = meta_W0$Outcome,
-  Timepoint = "W0")
+###########################################################
+########## W0 Log2(TPM) CORRELATION - PCoA FIG ############
+
+# Pull out the distances of each sample
+scores_W0 <- as.data.frame(bd_W0$vectors)
+scores_W0$SampleID <- rownames(scores_W0)
+scores_W0$Outcome <- meta_W0$Outcome
+
+# % variation explained = proportion of distance variation captured
+eig <- bd_W0$eig
+var_exp <- eig / sum(eig)
+percent_var <- round(var_exp * 100, 1)
+percent_var[1:5]
+
+# Determine where the centroids are 
+centroids_W0 <- scores_W0 %>%
+  dplyr::group_by(Outcome) %>%
+  dplyr::summarise(PCoA1 = mean(PCoA1), 
+                   PCoA2 = mean(PCoA2))
+
+scores_W0 <- merge(scores_W0, centroids_W0, by = "Outcome", suffixes = c("", "_centroid"))
+
+# Make hull df for polygon on plot
+hulls <- scores_W0 %>%
+  group_by(Outcome) %>%
+  slice(chull(PCoA1, PCoA2))
+
+# Make the figure
+W0_PermDisp_PCoA_fig1 <- scores_W0 %>% 
+  ggplot(aes(x = PCoA1, y = PCoA2, fill = Outcome, shape = Outcome)) + 
+  geom_point(size = 3.5, alpha = 0.8, stroke = 0.8) +
+  geom_polygon(data = hulls, aes(color = Outcome, group = Outcome), 
+               fill = NA, linewidth = 0.6, show.legend = F) +
+  geom_segment(data = scores_W0, aes(xend = PCoA1_centroid, yend = PCoA2_centroid, color = "black"), alpha = 0.3) +
+  geom_point(data = centroids_W0, aes(x = PCoA1, y = PCoA2, color = Outcome), 
+             size = 4, shape = 4, stroke = 1.5, show.legend = F) +
+  scale_fill_manual(values = c(`Cure` = "#0072B2", `Relapse` = "#bc5300")) +  
+  scale_color_manual(values = c(`Cure` = "#0072B2", `Relapse` = "#bc5300")) +  
+  scale_shape_manual(values = c(`Cure` = 21, `Relapse` = 21)) + 
+  labs(title = "W0 Subset: Log2(TPM+1) → Pearson Corr → PERMDISP",
+       subtitle = paste0("Avg dist to centroid: Cure=", round(bd_W0$group.distances[[1]], 3), "; Relapse=", round(bd_W0$group.distances[[2]], 3), "; p=", permutest_bd_W0$tab$`Pr(>F)`[1]),
+       x = "PCoA1",
+       y = "PCoA2") +
+  my_plot_themes
+W0_PermDisp_PCoA_fig1
+# ggsave(W0_PermDisp_PCoA_fig1,
+#        file = paste0("W0Subset_Corr_PCoA_v1.png"),
+#        path = "Figures/PERMDISP",
+#        dpi = 600,
+#        width = 8, height = 6, units = "in")
 
 
 ###########################################################
@@ -394,6 +455,7 @@ bd_W2
 # 0.4837 0.3327 0.2763 0.2592 0.2239 0.2135 0.2071 0.1938 
 
 permutest(bd_W2)
+permutest_bd_W2 <- permutest(bd_W2)
 # Permutation test for homogeneity of multivariate dispersions
 # Permutation: free
 # Number of permutations: 999
@@ -461,7 +523,7 @@ permutest(bd2_W2)
 # This also works?
 
 ### CAP ###
-# Not sure what is going on here......
+# Not sure what is going on here...... Think should try this for prediction
 cap_W2 <- capscale(dist_W2 ~ Outcome, data = meta_W2)
 plot(cap_W2)
 anova(cap_W2, permutations = 999)
@@ -500,30 +562,55 @@ pred_labels <- centroids$Outcome[pred$nn.index]
 
 
 ###########################################################
-########## W2 Log2(TPM) CORRELATION - FIGURES #############
+########## W2 Log2(TPM) CORRELATION - PCoA FIG ############
 
+# Pull out the distances of each sample
 scores_W2 <- as.data.frame(bd_W2$vectors)
 scores_W2$SampleID <- rownames(scores_W2)
 scores_W2$Outcome <- meta_W2$Outcome
 
-ggplot(scores_W2, aes(x = PCoA1, y = PCoA2, color = Outcome)) +
-  geom_point(size = 4, alpha = 0.9) +
-  theme_bw() +
-  labs(title = "PCoA of W2 Samples log2(TPM+1) Pearson Corr -> Dist Matrix (PERMDISP)",
-       x = "PCoA1",
-       y = "PCoA2")
+# % variation explained = proportion of distance variation captured
+eig <- bd_W2$eig
+var_exp <- eig / sum(eig)
+percent_var <- round(var_exp * 100, 1)
+percent_var[1:5]
 
-centroids <- scores_W2 %>%
+# Determine where the centroids are 
+centroids_W2 <- scores_W2 %>%
   dplyr::group_by(Outcome) %>%
-  dplyr::summarise(
-    PCoA1 = mean(PCoA1),
-    PCoA2 = mean(PCoA2))
+  dplyr::summarise(PCoA1 = mean(PCoA1), 
+                   PCoA2 = mean(PCoA2))
 
-ggplot(scores_W2, aes(x = PCoA1, y = PCoA2, color = Outcome)) +
-  geom_point(size = 4, alpha = 0.9) +
-  geom_point(data = centroids, size = 6, shape = 4, stroke = 1.5) +
-  theme_bw()
+scores_W2 <- merge(scores_W2, centroids, by = "Outcome", suffixes = c("", "_centroid"))
 
+# Make hull df for polygon on plot
+hulls <- scores_W2 %>%
+  group_by(Outcome) %>%
+  slice(chull(PCoA1, PCoA2))
+
+# Make the figure
+PermDisp_PCoA_fig1 <- scores_W2 %>% 
+  ggplot(aes(x = PCoA1, y = PCoA2, fill = Outcome, shape = Outcome)) + 
+  geom_point(size = 3.5, alpha = 0.8, stroke = 0.8) +
+  geom_polygon(data = hulls, aes(color = Outcome, group = Outcome), 
+               fill = NA, linewidth = 0.6, show.legend = F) +
+  geom_segment(data = scores_W2, aes(xend = PCoA1_centroid, yend = PCoA2_centroid, color = "black"), alpha = 0.3) +
+  geom_point(data = centroids, aes(x = PCoA1, y = PCoA2, color = Outcome), 
+             size = 4, shape = 4, stroke = 1.5, show.legend = F) +
+  scale_fill_manual(values = c(`Cure` = "#0072B2", `Relapse` = "#bc5300")) +  
+  scale_color_manual(values = c(`Cure` = "#0072B2", `Relapse` = "#bc5300")) +  
+  scale_shape_manual(values = c(`Cure` = 21, `Relapse` = 21)) + 
+  labs(title = "W2: Log2(TPM+1) → Pearson Corr → PERMDISP",
+       subtitle = paste0("Avg dist to centroid: Cure=", round(bd_W2$group.distances[[1]], 3), "; Relapse=", round(bd_W2$group.distances[[2]], 3), "; p=", permutest_bd_W2$tab$`Pr(>F)`[1]),
+       x = "PCoA1",
+       y = "PCoA2") +
+  my_plot_themes
+PermDisp_PCoA_fig1
+# ggsave(PermDisp_PCoA_fig1,
+#        file = paste0("W2_Corr_PCoA_v1.png"),
+#        path = "Figures/PERMDISP",
+#        dpi = 600,
+#        width = 8, height = 6, units = "in")
 
 
 ###########################################################
