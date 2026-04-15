@@ -508,11 +508,6 @@ adonis2(dist(bd_W2$distances) ~ meta_W2$Outcome)
 # ---
 #   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
-plot_df_W2 <- data.frame(
-  distance = bd_W2$distances,
-  Outcome = meta_W2$Outcome,
-  Week = "W2")
-
 
 ### Trying with the equation from https://stats.stackexchange.com/questions/165194/using-correlation-as-distance-metric-for-hierarchical-clustering ##
 # dist2_W2 <- as.dist(sqrt(2*(1 - cor_mat_W2)))
@@ -524,41 +519,41 @@ permutest(bd2_W2)
 
 ### CAP ###
 # Not sure what is going on here...... Think should try this for prediction
-cap_W2 <- capscale(dist_W2 ~ Outcome, data = meta_W2)
-plot(cap_W2)
-anova(cap_W2, permutations = 999)
-# Permutation test for capscale under reduced model
-# Permutation: free
-# Number of permutations: 999
+# cap_W2 <- capscale(dist_W2 ~ Outcome, data = meta_W2)
+# plot(cap_W2)
+# anova(cap_W2, permutations = 999)
+# # Permutation test for capscale under reduced model
+# # Permutation: free
+# # Number of permutations: 999
+# # 
+# # Model: capscale(formula = dist_W2 ~ Outcome, data = meta_W2)
+# # Df SumOfSqs      F Pr(>F)   
+# # Model     1  0.33942 2.1232   0.01 **
+# #   Residual 11  1.75852                 
+# # ---
+# #   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 # 
-# Model: capscale(formula = dist_W2 ~ Outcome, data = meta_W2)
-# Df SumOfSqs      F Pr(>F)   
-# Model     1  0.33942 2.1232   0.01 **
-#   Residual 11  1.75852                 
-# ---
-#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
-
-# get site scores
-scores_df <- as.data.frame(scores(cap_W2, display = "sites"))
-
-# add labels
-scores_df$Outcome <- meta_W2$Outcome
-
-centroids <- scores_df %>%
-  group_by(Outcome) %>%
-  summarise(across(starts_with("CAP"), mean))
-
-threshold <- mean(centroids$CAP1)
-
-pred_labels <- ifelse(scores_df$CAP1 > threshold, "Relapse", "Cure")
+# # get site scores
+# scores_df <- as.data.frame(scores(cap_W2, display = "sites"))
+# 
+# # add labels
+# scores_df$Outcome <- meta_W2$Outcome
+# 
+# centroids <- scores_df %>%
+#   group_by(Outcome) %>%
+#   summarise(across(starts_with("CAP"), mean))
+# 
+# threshold <- mean(centroids$CAP1)
+# 
+# pred_labels <- ifelse(scores_df$CAP1 > threshold, "Relapse", "Cure")
 
 # simple nearest-centroid classification
-library(FNN)
-# Use only CAP1
-centroid_mat <- centroids[, "CAP1", drop = FALSE]
-score_mat <- scores_df[, "CAP1", drop = FALSE]
-pred <- get.knnx(data = centroid_mat, query = score_mat, k = 1)
-pred_labels <- centroids$Outcome[pred$nn.index]
+# library(FNN)
+# # Use only CAP1
+# centroid_mat <- centroids[, "CAP1", drop = FALSE]
+# score_mat <- scores_df[, "CAP1", drop = FALSE]
+# pred <- get.knnx(data = centroid_mat, query = score_mat, k = 1)
+# pred_labels <- centroids$Outcome[pred$nn.index]
 
 
 ###########################################################
@@ -581,7 +576,7 @@ centroids_W2 <- scores_W2 %>%
   dplyr::summarise(PCoA1 = mean(PCoA1), 
                    PCoA2 = mean(PCoA2))
 
-scores_W2 <- merge(scores_W2, centroids, by = "Outcome", suffixes = c("", "_centroid"))
+scores_W2 <- merge(scores_W2, centroids_W2, by = "Outcome", suffixes = c("", "_centroid"))
 
 # Make hull df for polygon on plot
 hulls <- scores_W2 %>%
@@ -595,7 +590,7 @@ PermDisp_PCoA_fig1 <- scores_W2 %>%
   geom_polygon(data = hulls, aes(color = Outcome, group = Outcome), 
                fill = NA, linewidth = 0.6, show.legend = F) +
   geom_segment(data = scores_W2, aes(xend = PCoA1_centroid, yend = PCoA2_centroid, color = "black"), alpha = 0.3) +
-  geom_point(data = centroids, aes(x = PCoA1, y = PCoA2, color = Outcome), 
+  geom_point(data = centroids_W2, aes(x = PCoA1, y = PCoA2, color = Outcome), 
              size = 4, shape = 4, stroke = 1.5, show.legend = F) +
   scale_fill_manual(values = c(`Cure` = "#0072B2", `Relapse` = "#bc5300")) +  
   scale_color_manual(values = c(`Cure` = "#0072B2", `Relapse` = "#bc5300")) +  
