@@ -591,6 +591,7 @@ hulls <- scores_W2 %>%
 PermDisp_PCoA_fig1 <- scores_W2 %>% 
   ggplot(aes(x = PCoA1, y = PCoA2, fill = Outcome, shape = Outcome)) + 
   geom_point(size = 3.5, alpha = 0.8, stroke = 0.8) +
+  # geom_text_repel(aes(label = SampleID)) + 
   geom_polygon(data = hulls, aes(color = Outcome, group = Outcome), 
                fill = NA, linewidth = 0.6, show.legend = F) +
   geom_segment(data = scores_W2, aes(xend = PCoA1_centroid, yend = PCoA2_centroid, color = "black"), alpha = 0.3) +
