@@ -25,6 +25,8 @@ source("Import_data.R")
 # GoodSputum60_tpmf_log2
 # GoodSputum60_Metadata
 
+source("TimeCourseScripts/Delta_Weeks0to2.R")
+
 library(vegan)
 
 
@@ -753,3 +755,128 @@ plot_df_W2 <- data.frame(
   distance = bd_W2$distances,
   Outcome = meta_W2$Outcome,
   Timepoint = "W2")
+
+
+
+###########################################################
+################# ∆ Log2(TPM) euclidean ###################
+
+# Adjust dataframe
+delta_mat <- BothWk_log2TPMf_delta %>%
+  dplyr::select(Gene, Patient, delta) %>%
+  pivot_wider(names_from = Patient, values_from = delta) %>%
+  as.data.frame()
+rownames(delta_mat) <- delta_mat$Gene
+delta_mat <- delta_mat[, -1]  # remove Gene column
+delta_mat_f <- delta_mat[apply(delta_mat, 1, var) != 0, ] # Now 4025 genes
+delta_mat_t <- t(delta_mat_f)
+
+# Create metadata
+meta_delta <- BothWk_log2TPMf_delta %>%
+  dplyr::select(Patient, Outcome) %>%
+  distinct()
+
+# Make a distance matrix
+dist_delta <- vegdist(delta_mat_t, method = "euclidean")
+# dist_W2 <- vegdist(log2TPM_W2_t, method = "bray")
+
+# Run PERMDISP
+bd_delta <- betadisper(dist_delta, meta_delta$Outcome)
+bd_delta
+# Homogeneity of multivariate dispersions
+# 
+# Call: betadisper(d = dist_delta, group = meta_delta$Outcome)
+# 
+# No. of Positive Eigenvalues: 12
+# No. of Negative Eigenvalues: 0
+# 
+# Average distance to median:
+#   Cure Relapse 
+# 157.3   186.1 
+# 
+# Eigenvalues for PCoA axes:
+#   (Showing 8 of 12 eigenvalues)
+# PCoA1 PCoA2 PCoA3 PCoA4 PCoA5 PCoA6 PCoA7 PCoA8 
+# 87343 61636 46936 41577 37685 33926 29767 23390 
+
+permutest(bd_delta)
+# Permutation test for homogeneity of multivariate dispersions
+# Permutation: free
+# Number of permutations: 999
+# 
+# Response: Distances
+# Df Sum Sq Mean Sq      F N.Perm Pr(>F)
+# Groups     1   2560  2559.9 1.7565    999  0.224
+# Residuals 11  16032  1457.5      
+
+boxplot(bd_delta, main = "W2 Distance to Centroid")
+plot(bd_delta)
+
+
+
+###########################################################
+################# ∆ Log2(TPM) CORRELATION #################
+# W0->W2 change BothWk_log2TPMf_delta
+
+# Adjust dataframe
+delta_mat <- BothWk_log2TPMf_delta %>%
+  dplyr::select(Gene, Patient, delta) %>%
+  pivot_wider(names_from = Patient, values_from = delta) %>%
+  as.data.frame()
+rownames(delta_mat) <- delta_mat$Gene
+delta_mat <- delta_mat[, -1]  # remove Gene column
+delta_mat_f <- delta_mat[apply(delta_mat, 1, var) != 0, ] # Now 4025 genes
+delta_mat_t <- t(delta_mat_f)
+
+# Create metadata
+meta_delta <- BothWk_log2TPMf_delta %>%
+  dplyr::select(Patient, Outcome) %>%
+  distinct()
+
+# Make a correlation distance matrix
+cor_mat_delta <- cor(delta_mat_f, method = "pearson")
+dist_delta <- as.dist(1 - cor_mat_delta)
+# dist_delta <- as.dist(sqrt(2 * (1 - cor_mat_delta))) # If we do it like this we don't have to add=T
+
+# Run PERMDISP
+bd_delta <- betadisper(dist_delta, meta_delta$Outcome, type = "centroid", add = T)
+bd_delta
+# Homogeneity of multivariate dispersions
+# 
+# Call: betadisper(d = dist_delta, group = meta_delta$Outcome, type = "centroid", add =
+#                    T)
+# 
+# No. of Positive Eigenvalues: 12
+# No. of Negative Eigenvalues: 0
+# 
+# Average distance to centroid:
+#   Cure Relapse 
+# 0.4361  0.4882 
+# 
+# Eigenvalues for PCoA axes:
+#   (Showing 8 of 12 eigenvalues)
+# PCoA1  PCoA2  PCoA3  PCoA4  PCoA5  PCoA6  PCoA7  PCoA8 
+# 0.4671 0.4014 0.3465 0.3196 0.2728 0.2605 0.2081 0.1914 
+
+permutest(bd_delta)
+permutest_bd_delta <- permutest(bd_delta)
+# Permutation test for homogeneity of multivariate dispersions
+# Permutation: free
+# Number of permutations: 999
+# 
+# Response: Distances
+# Df   Sum Sq   Mean Sq      F N.Perm Pr(>F)
+# Groups     1 0.008341 0.0083407 2.2042    999  0.176
+# Residuals 11 0.041623 0.0037839  
+
+boxplot(bd_delta, main = "W2 Distance to Centroid")
+plot(bd_delta)
+
+
+
+
+
+
+
+
+
