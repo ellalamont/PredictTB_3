@@ -801,7 +801,9 @@ bd_delta
 # PCoA1 PCoA2 PCoA3 PCoA4 PCoA5 PCoA6 PCoA7 PCoA8 
 # 87343 61636 46936 41577 37685 33926 29767 23390 
 
-permutest(bd_delta)
+set.seed(42)
+permutest_bd_delta <- permutest(bd_delta)
+permutest_bd_delta
 # Permutation test for homogeneity of multivariate dispersions
 # Permutation: free
 # Number of permutations: 999
@@ -860,8 +862,9 @@ bd_delta
 # PCoA1  PCoA2  PCoA3  PCoA4  PCoA5  PCoA6  PCoA7  PCoA8 
 # 0.4671 0.4014 0.3465 0.3196 0.2728 0.2605 0.2081 0.1914 
 
-permutest(bd_delta)
+set.seed(42)
 permutest_bd_delta <- permutest(bd_delta)
+permutest_bd_delta
 # Permutation test for homogeneity of multivariate dispersions
 # Permutation: free
 # Number of permutations: 999
