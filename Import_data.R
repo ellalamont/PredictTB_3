@@ -448,6 +448,8 @@ GoodSputum60_Metadata_t <- GoodSputum60_Metadata_t[-1, ]
 GoodSputum60_tpmf_log2 <- log2(GoodSputum60_tpmf + 1)
 # max(GoodSputum60_tpmf_log2) # 14.46599
 
+GoodSamples60_tpmf_log2 <- log2(GoodSamples60_tpmf + 1)
+
 ###########################################################
 #################### LIST OF W0 SUBSET ####################
 # 4/14/26
