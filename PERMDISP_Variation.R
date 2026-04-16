@@ -456,7 +456,9 @@ bd_W2
 # PCoA1  PCoA2  PCoA3  PCoA4  PCoA5  PCoA6  PCoA7  PCoA8 
 # 0.4837 0.3327 0.2763 0.2592 0.2239 0.2135 0.2071 0.1938 
 
+set.seed(42)
 permutest(bd_W2)
+set.seed(42)
 permutest_bd_W2 <- permutest(bd_W2)
 # Permutation test for homogeneity of multivariate dispersions
 # Permutation: free
@@ -603,11 +605,11 @@ PermDisp_PCoA_fig1 <- scores_W2 %>%
        y = "PCoA2") +
   my_plot_themes
 PermDisp_PCoA_fig1
-# ggsave(PermDisp_PCoA_fig1,
-#        file = paste0("W2_Corr_PCoA_v1.png"),
-#        path = "Figures/PERMDISP",
-#        dpi = 600,
-#        width = 8, height = 6, units = "in")
+ggsave(PermDisp_PCoA_fig1,
+       file = paste0("W2_Corr_PCoA_v2.png"),
+       path = "Figures/PERMDISP",
+       dpi = 600,
+       width = 7, height = 5.8, units = "in")
 
 
 ###########################################################
