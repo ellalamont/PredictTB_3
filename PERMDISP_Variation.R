@@ -591,6 +591,7 @@ hulls <- scores_W2 %>%
 PermDisp_PCoA_fig1 <- scores_W2 %>% 
   ggplot(aes(x = PCoA1, y = PCoA2, fill = Outcome, shape = Outcome)) + 
   geom_point(size = 3.5, alpha = 0.8, stroke = 0.8) +
+  # geom_text_repel(aes(label = SampleID)) + 
   geom_polygon(data = hulls, aes(color = Outcome, group = Outcome), 
                fill = NA, linewidth = 0.6, show.legend = F) +
   geom_segment(data = scores_W2, aes(xend = PCoA1_centroid, yend = PCoA2_centroid, color = "black"), alpha = 0.3) +
@@ -605,11 +606,139 @@ PermDisp_PCoA_fig1 <- scores_W2 %>%
        y = "PCoA2") +
   my_plot_themes
 PermDisp_PCoA_fig1
-ggsave(PermDisp_PCoA_fig1,
-       file = paste0("W2_Corr_PCoA_v2.png"),
-       path = "Figures/PERMDISP",
-       dpi = 600,
-       width = 7, height = 5.8, units = "in")
+# ggsave(PermDisp_PCoA_fig1,
+#        file = paste0("W2_Corr_PCoA_v2.png"),
+#        path = "Figures/PERMDISP",
+#        dpi = 600,
+#        width = 9, height = 5.8, units = "in")
+
+
+###########################################################
+############# W2 Log2(TPM) CORRELATION w/H37Ra ############
+# 4/16/26
+
+meta_W2 <- GoodSamples60_pipeSummary %>% 
+  dplyr::select(SampleID2, Week, Patient, Outcome, Type2, Arm, main_lineage) %>%
+  filter(!str_detect(SampleID2, "THP1")) %>%
+  filter(Week != "Week 0" | is.na(Week)) %>%
+  replace_na(list(Outcome = "Broth")) # %>%
+  # mutate(SampleID = gsub(pattern = "_S[0-9]+$", replacement = "", x = SampleID))
+
+samples_W2 <- meta_W2$SampleID2
+log2TPM_W2 <- GoodSamples60_tpmf_log2[, samples_W2]
+
+# remove genes with zero variance
+log2TPM_W2_f <- log2TPM_W2[apply(log2TPM_W2, 1, var) != 0, ]
+# Now only 4026 genes
+
+# Make a correlation distance matrix
+cor_mat_W2 <- cor(log2TPM_W2_f, method = "pearson")
+dist_W2 <- as.dist(1 - cor_mat_W2)
+
+
+# Run PERMDISP
+bd_W2 <- betadisper(dist_W2, meta_W2$Outcome, type = "centroid", add = TRUE)
+bd_W2
+# Homogeneity of multivariate dispersions
+# 
+# Call: betadisper(d = dist_W2, group = meta_W2$Outcome, type = "centroid", add =
+#                    TRUE)
+# 
+# No. of Positive Eigenvalues: 14
+# No. of Negative Eigenvalues: 0
+# 
+# Average distance to centroid:
+#   Broth    Cure Relapse 
+# 0.0121  0.3825  0.4841 
+# 
+# Eigenvalues for PCoA axes:
+#   (Showing 8 of 14 eigenvalues)
+# PCoA1  PCoA2  PCoA3  PCoA4  PCoA5  PCoA6  PCoA7  PCoA8 
+# 0.9674 0.4726 0.3320 0.2698 0.2499 0.2222 0.2124 0.1932 
+
+set.seed(42)
+permutest(bd_W2)
+set.seed(42)
+permutest_bd_W2 <- permutest(bd_W2)
+# Permutation test for homogeneity of multivariate dispersions
+# Permutation: free
+# Number of permutations: 999
+# 
+# Response: Distances
+# Df   Sum Sq  Mean Sq      F N.Perm Pr(>F)   
+# Groups     1 0.031673 0.031673 10.065    999  0.009 **
+#   Residuals 11 0.034615 0.003147                        
+# ---
+#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1  
+
+TukeyHSD(bd_W2)
+# Tukey multiple comparisons of means
+# 95% family-wise confidence level
+# 
+# Fit: aov(formula = distances ~ group, data = df)
+# 
+# $group
+# diff        lwr       upr     p adj
+# Cure-Broth    0.3703819 0.27790726 0.4628564 0.0000003
+# Relapse-Broth 0.4720278 0.37227368 0.5717820 0.0000000
+# Relapse-Cure  0.1016460 0.02377542 0.1795166 0.0112526
+
+pairwise.perm.manova(dist_W2, meta_W2$Outcome)
+
+boxplot(bd_W2, main = "W2 Distance to Centroid")
+plot(bd_W2)
+
+###########################################################
+####### W2 Log2(TPM) CORRELATION w/H37ra - PCoA FIG #######
+
+# Pull out the distances of each sample
+scores_W2 <- as.data.frame(bd_W2$vectors)
+scores_W2$SampleID <- rownames(scores_W2)
+scores_W2$Outcome <- meta_W2$Outcome
+
+# % variation explained = proportion of distance variation captured
+eig <- bd_W2$eig
+var_exp <- eig / sum(eig)
+percent_var <- round(var_exp * 100, 1)
+percent_var[1:5]
+
+# Determine where the centroids are 
+centroids_W2 <- scores_W2 %>%
+  dplyr::group_by(Outcome) %>%
+  dplyr::summarise(PCoA1 = mean(PCoA1), 
+                   PCoA2 = mean(PCoA2))
+
+scores_W2 <- merge(scores_W2, centroids_W2, by = "Outcome", suffixes = c("", "_centroid"))
+
+# Make hull df for polygon on plot
+hulls <- scores_W2 %>%
+  group_by(Outcome) %>%
+  slice(chull(PCoA1, PCoA2))
+
+# Make the figure
+PermDisp_PCoA_fig2 <- scores_W2 %>% 
+  ggplot(aes(x = PCoA1, y = PCoA2, fill = Outcome, shape = Outcome)) + 
+  geom_point(size = 3.5, alpha = 0.8, stroke = 0.8) +
+  # geom_text_repel(aes(label = SampleID)) + 
+  geom_polygon(data = hulls, aes(color = Outcome, group = Outcome), 
+               fill = NA, linewidth = 0.6, show.legend = F) +
+  geom_segment(data = scores_W2, aes(xend = PCoA1_centroid, yend = PCoA2_centroid, color = "black"), alpha = 0.3) +
+  geom_point(data = centroids_W2, aes(x = PCoA1, y = PCoA2, color = Outcome), 
+             size = 4, shape = 4, stroke = 1.5, show.legend = F) +
+  scale_fill_manual(values = c(`Cure` = "#0072B2", `Relapse` = "#bc5300", `Broth` = "#999999")) +  
+  scale_color_manual(values = c(`Cure` = "#0072B2", `Relapse` = "#bc5300", `Broth` = "#999999")) +  
+  scale_shape_manual(values = c(`Cure` = 21, `Relapse` = 21, `Broth` = 21)) + 
+  labs(title = "W2: Log2(TPM+1) → Pearson Corr → PERMDISP",
+       # subtitle = paste0("Avg dist to centroid: Cure=", round(bd_W2$group.distances[[1]], 3), "; Relapse=", round(bd_W2$group.distances[[2]], 3), "; p=", permutest_bd_W2$tab$`Pr(>F)`[1]),
+       x = "PCoA1",
+       y = "PCoA2") +
+  my_plot_themes
+PermDisp_PCoA_fig2
+# ggsave(PermDisp_PCoA_fig1,
+#        file = paste0("W2_Corr_PCoA_v2.png"),
+#        path = "Figures/PERMDISP",
+#        dpi = 600,
+#        width = 9, height = 5.8, units = "in")
 
 
 ###########################################################
