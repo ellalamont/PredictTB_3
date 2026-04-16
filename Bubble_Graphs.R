@@ -101,8 +101,9 @@ myBubble_plot
 
 ###########################################################
 ################# EllaGeneSets: W0 vs Ra ##################
+# 4/15/26: Updated gene set
 
-CurrentGeneSet <- "EllaGeneSets_2026.03.19"
+CurrentGeneSet <- "EllaGeneSets_2026.04.15"
 CurrentComparison <- "W0_vs_Ra"
 
 myData <- paste0(CurrentComparison, "_", CurrentGeneSet)
@@ -119,32 +120,49 @@ myBubble_df <- list_GeneSets2[[myData]] %>%
             by = "PathName") %>% 
   mutate(Group_wrapped = str_wrap(Group, width = 19))
 
-# myBubble_plot <- makeBubble_EL(myBubble_df, myTitle = myData)
-# myBubble_plot
+myBubble_plot <- makeBubble_EL(myBubble_df, title = myData)
+myBubble_plot
 # ggsave(myBubble_plot,
 #        file = paste0(myData, "_v1.pdf"),
 #        path = "Figures/Bubbles",
 #        width = 6, height = 10, units = "in")
 
 ### Subset for PacTB ###
-myBubble_df_PacTB <- myBubble_df %>%
-  filter(Group %in% c("Cell wall synthesis and remodeling", "Fatty Acid and Cholesterol",
-                      "Growth", "Hypoxia related", # "Metal", 
-                      "Nutrient Starvation", "Stress responses"))
-myBubble_plot_PacTB <- makeBubble_EL(myBubble_df_PacTB, title = myData, 
-                                     x_min = -3.5, x_max = 3.5)
-myBubble_plot_PacTB
+# myBubble_df_PacTB <- myBubble_df %>%
+#   filter(Group %in% c("Cell wall synthesis and remodeling", "Fatty Acid and Cholesterol",
+#                       "Growth", "Hypoxia related", # "Metal", 
+#                       "Nutrient Starvation", "Stress responses"))
+# myBubble_plot_PacTB <- makeBubble_EL(myBubble_df_PacTB, title = myData, 
+#                                      x_min = -3.5, x_max = 3.5)
+# myBubble_plot_PacTB
 # ggsave(myBubble_plot_PacTB,
 #        file = paste0(myData, "_PacTB_v1.png"),
 #        path = "Figures/Bubbles",
 #        dpi = 600,
 #        width = 6.5, height = 7, units = "in")
 
+### 4/15/26: Subset for TB Symposium ###
+myBubble_df_TBSymp <- myBubble_df %>%
+  filter(Group %in% c("Cell wall synthesis and remodeling", "Fatty Acid and Cholesterol",
+                      "Growth", "Respiration", "Hypoxia",
+                      "Stress responses")) %>%
+  filter(!PathName %in% c("Non-specific stress responses", "Oxidative stress response")) %>% 
+  mutate(PathName_2 = ifelse(PathName_2 == "Non-specific stress responses Full (n=64)", "Non-specific stress responses (n=64)", PathName_2))
+myBubble_plot_TBSymp <- makeBubble_EL(myBubble_df_TBSymp, title = myData,
+                                     x_min = -3.5, x_max = 3.5)
+myBubble_plot_TBSymp
+# ggsave(myBubble_plot_TBSymp,
+#        file = paste0(myData, "_TBSymp_v2.png"),
+#        path = "Figures/Bubbles",
+#        dpi = 600,
+#        width = 6.5, height = 6.2, units = "in")
+
 
 ###########################################################
 ################# EllaGeneSets: W2 vs Ra ##################
+# 4/15/26: Updated gene set
 
-CurrentGeneSet <- "EllaGeneSets_2026.03.19"
+CurrentGeneSet <- "EllaGeneSets_2026.04.15"
 CurrentComparison <- "W2_vs_Ra"
 
 myData <- paste0(CurrentComparison, "_", CurrentGeneSet)
@@ -161,8 +179,8 @@ myBubble_df <- list_GeneSets2[[myData]] %>%
             by = "PathName") %>% 
   mutate(Group_wrapped = str_wrap(Group, width = 19))
 
-# myBubble_plot <- makeBubble_EL(myBubble_df, title = myData)
-# myBubble_plot
+myBubble_plot <- makeBubble_EL(myBubble_df, title = myData)
+myBubble_plot
 # ggsave(myBubble_plot,
 #        file = paste0(myData, "_v1.pdf"),
 #        path = "Figures/Bubbles",
@@ -170,18 +188,34 @@ myBubble_df <- list_GeneSets2[[myData]] %>%
 
 
 ### Subset for PacTB ###
-myBubble_df_PacTB <- myBubble_df %>%
-  filter(Group %in% c("Cell wall synthesis and remodeling", "Fatty Acid and Cholesterol",
-                      "Growth", "Hypoxia related", # "Metal", 
-                      "Nutrient Starvation", "Stress responses"))
-myBubble_plot_PacTB <- makeBubble_EL(myBubble_df_PacTB, title = myData, 
-                                     x_min = -3.5, x_max = 3.5)
-myBubble_plot_PacTB
+# myBubble_df_PacTB <- myBubble_df %>%
+#   filter(Group %in% c("Cell wall synthesis and remodeling", "Fatty Acid and Cholesterol",
+#                       "Growth", "Hypoxia related", # "Metal", 
+#                       "Nutrient Starvation", "Stress responses"))
+# myBubble_plot_PacTB <- makeBubble_EL(myBubble_df_PacTB, title = myData, 
+#                                      x_min = -3.5, x_max = 3.5)
+# myBubble_plot_PacTB
 # ggsave(myBubble_plot_PacTB,
 #        file = paste0(myData, "_PacTB_v1.png"),
 #        path = "Figures/Bubbles",
 #        dpi = 600,
 #        width = 6.5, height = 7, units = "in")
+
+### 4/15/26: Subset for TB Symposium ###
+myBubble_df_TBSymp <- myBubble_df %>%
+  filter(Group %in% c("Cell wall synthesis and remodeling", "Fatty Acid and Cholesterol",
+                      "Growth", "Respiration", "Hypoxia",
+                      "Stress responses")) %>%
+  filter(!PathName %in% c("Non-specific stress responses", "Oxidative stress response")) %>% 
+  mutate(PathName_2 = ifelse(PathName_2 == "Non-specific stress responses Full (n=64)", "Non-specific stress responses (n=64)", PathName_2))
+myBubble_plot_TBSymp <- makeBubble_EL(myBubble_df_TBSymp, title = myData,
+                                      x_min = -3.5, x_max = 3.5)
+myBubble_plot_TBSymp
+# ggsave(myBubble_plot_TBSymp,
+#        file = paste0(myData, "_TBSymp_v2.png"),
+#        path = "Figures/Bubbles",
+#        dpi = 600,
+#        width = 6.5, height = 6.2, units = "in")
 
 
 ###########################################################
@@ -224,10 +258,10 @@ myBubble_plot_PacTB
 
 ###########################################################
 ############ EllaGeneSets: W0 CURE vs RELAPSE #############
-
+# Updated 4/15/26
 # list_GeneSets_names
 
-CurrentGeneSet <- "EllaGeneSets_2026.03.19"
+CurrentGeneSet <- "EllaGeneSets_2026.04.15"
 CurrentComparison <- "W0.Cure_vs_Relapse"
 
 myData <- paste0(CurrentComparison, "_", CurrentGeneSet)
@@ -244,21 +278,21 @@ myBubble_df <- list_GeneSets2[[myData]] %>%
             by = "PathName") %>% 
   mutate(Group_wrapped = str_wrap(Group, width = 19))
 
-# myBubble_plot <- makeBubble_EL(myBubble_df, title = myData)
-# myBubble_plot
+myBubble_plot <- makeBubble_EL(myBubble_df, title = myData)
+myBubble_plot
 # ggsave(myBubble_plot,
 #        file = paste0(myData, "_v1.pdf"),
 #        path = "Figures/Bubbles",
 #        width = 6, height = 10, units = "in")
 
 ### Subset for PacTB ###
-myBubble_df_PacTB <- myBubble_df %>%
-  filter(Group %in% c("Cell wall synthesis and remodeling", "Fatty Acid and Cholesterol",
-                      "Growth", "Hypoxia related", # "Metal", 
-                      "Nutrient Starvation", "Stress responses"))
-myBubble_plot_PacTB <- makeBubble_EL(myBubble_df_PacTB, title = myData, 
-                                     x_min = -3.5, x_max = 3.5)
-myBubble_plot_PacTB
+# myBubble_df_PacTB <- myBubble_df %>%
+#   filter(Group %in% c("Cell wall synthesis and remodeling", "Fatty Acid and Cholesterol",
+#                       "Growth", "Hypoxia related", # "Metal", 
+#                       "Nutrient Starvation", "Stress responses"))
+# myBubble_plot_PacTB <- makeBubble_EL(myBubble_df_PacTB, title = myData, 
+#                                      x_min = -3.5, x_max = 3.5)
+# myBubble_plot_PacTB
 # ggsave(myBubble_plot_PacTB,
 #        file = paste0(myData, "_PacTB_v1.png"),
 #        path = "Figures/Bubbles",
@@ -269,10 +303,10 @@ myBubble_plot_PacTB
 
 ###########################################################
 ############# EllaGeneSets: W2 CURE vs RELAPSE ############
-
+# Updated 4/15/26
 # list_GeneSets_names
 
-CurrentGeneSet <- "EllaGeneSets_2026.03.19"
+CurrentGeneSet <- "EllaGeneSets_2026.04.15"
 CurrentComparison <- "W2.Cure_vs_Relapse"
 
 myData <- paste0(CurrentComparison, "_", CurrentGeneSet)
@@ -289,26 +323,43 @@ myBubble_df <- list_GeneSets2[[myData]] %>%
             by = "PathName") %>% 
   mutate(Group_wrapped = str_wrap(Group, width = 19))
 
-# myBubble_plot <- makeBubble_EL(myBubble_df, title = myData)
-# myBubble_plot
+myBubble_plot <- makeBubble_EL(myBubble_df, title = myData)
+myBubble_plot
 # ggsave(myBubble_plot,
 #        file = paste0(myData, "_v1.pdf"),
 #        path = "Figures/Bubbles",
 #        width = 6, height = 10, units = "in")
 
 ### Subset for PacTB ###
-myBubble_df_PacTB <- myBubble_df %>%
-  filter(Group %in% c("Cell wall synthesis and remodeling", "Fatty Acid and Cholesterol",
-                      "Growth", "Hypoxia related", # "Metal", 
-                      "Nutrient Starvation", "Stress responses"))
-myBubble_plot_PacTB <- makeBubble_EL(myBubble_df_PacTB, title = myData, 
-                                     x_min = -3.5, x_max = 3.5)
-myBubble_plot_PacTB
+# myBubble_df_PacTB <- myBubble_df %>%
+#   filter(Group %in% c("Cell wall synthesis and remodeling", "Fatty Acid and Cholesterol",
+#                       "Growth", "Hypoxia related", # "Metal", 
+#                       "Nutrient Starvation", "Stress responses"))
+# myBubble_plot_PacTB <- makeBubble_EL(myBubble_df_PacTB, title = myData, 
+#                                      x_min = -3.5, x_max = 3.5)
+# myBubble_plot_PacTB
 # ggsave(myBubble_plot_PacTB,
 #        file = paste0(myData, "_PacTB_v1.png"),
 #        path = "Figures/Bubbles",
 #        dpi = 600,
 #        width = 6.5, height = 7, units = "in")
+
+
+### 4/15/26: Subset for TB Symposium ###
+myBubble_df_TBSymp <- myBubble_df %>%
+  filter(Group %in% c("Toxin/Antitoxin", "ESX genes", "Growth",
+                      "Hypoxia related", "Nucleic Acid",
+                      "Stress responses")) %>%
+  filter(!PathName %in% c("Non-specific stress responses", "Oxidative stress response")) %>% 
+  mutate(PathName_2 = ifelse(PathName_2 == "Non-specific stress responses Full (n=64)", "Non-specific stress responses (n=64)", PathName_2))
+myBubble_plot_TBSymp <- makeBubble_EL(myBubble_df_TBSymp, title = myData,
+                                      x_min = -2, x_max = 1.5)
+myBubble_plot_TBSymp
+ggsave(myBubble_plot_TBSymp,
+       file = paste0(myData, "_TBSymp_v1.png"),
+       path = "Figures/Bubbles",
+       dpi = 600,
+       width = 6, height = 4.2, units = "in")
 
 
 ###########################################################
