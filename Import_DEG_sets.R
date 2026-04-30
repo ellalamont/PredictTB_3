@@ -148,10 +148,57 @@ for (i in 1:length(list_GeneSets)) {
 
 
 
+###########################################################
+############ IMPORT DEG_W2_Relapses.vs.AllCures ###########
+# 4/30/26
+# These samples are single W2 relapses (3 copies of each transcript) vs all the W2 cures (n=8)
 
+## STILL TRYING TO ADD THE EXTRA ROWS HERE!
 
+parent_dir <- "Data/DEG_W2_Relapses.vs.AllCures"
+folders <- list.dirs(parent_dir, full.names = T, recursive = F)
 
+# Function to get the JOINED.txt files from each folder
+DEG.list_W2Relapses.vs.AllCures <- lapply(folders, function(f) {
+  # Find the JOINED file inside each folder
+  current_file <- list.files(f, pattern = "\\.JOINED\\.txt$", full.names = T)
+  # Read in the file
+  if (length(current_file) == 1) {
+    read.delim(current_file)
+  } else {NULL}})
 
+# Add the names to the list of lists
+names(DEG.list_W2Relapses.vs.AllCures) <- basename(folders)
 
+# Also make a list of the names
+DEG.Names_W2Relapses.vs.AllCures <- names(DEG.list_W2Relapses.vs.AllCures)
 
+# Remove non-coding genes
+DEG.list_W2Relapses.vs.AllCures_f <- lapply(DEG.list_W2Relapses.vs.AllCures, function(df) {
+  df %>% filter(str_detect(GENE_ID, "^Rv\\d+.*"))})
 
+# Add columns of DE values
+DEG.list_W2Relapses.vs.AllCures_f2 <- list()
+ordered_DE <- c("significant down", "not significant", "significant up")
+for (i in 1:length(DEG.list_W2Relapses.vs.AllCures_f2)) {
+  
+  current_df <- DEG.list_W2Relapses.vs.AllCures_f2[[i]]
+  current_df_name <- DEG.Names_W2Relapses.vs.AllCures[i]
+  
+  # Columns for Log2Fold > 1 and AVG_PVALUE < 0.05
+  current_df$DE1 <- ifelse(current_df$LOG2FOLD < -1 & current_df$AVG_PVALUE < 0.05, "significant down", ifelse(current_df$LOG2FOLD > 1 & current_df$AVG_PVALUE < 0.05, "significant up", "not significant"))
+  current_df$DE1 <- factor(current_df$DE1, levels = ordered_DE)
+  current_df$DE1_labels <- ifelse(current_df$DE1 != "not significant", current_df$GENE_NAME, NA)
+  
+  # Columns for Log2Fold > 2 and AVG_PVALUE < 0.05
+  current_df$DE2 <- ifelse(current_df$LOG2FOLD < -2 & current_df$AVG_PVALUE < 0.05, "significant down", ifelse(current_df$LOG2FOLD > 2 & current_df$AVG_PVALUE < 0.05, "significant up", "not significant"))
+  current_df$DE2 <- factor(current_df$DE2, levels = ordered_DE)
+  current_df$DE2_labels <- ifelse(current_df$DE2 != "not significant", current_df$GENE_NAME, NA)
+  
+  # Columns for Log2Fold > 2.5 and AVG_PVALUE < 0.05
+  current_df$DE2.5 <- ifelse(current_df$LOG2FOLD < -2.5 & current_df$AVG_PVALUE < 0.05, "significant down", ifelse(current_df$LOG2FOLD > 2.5 & current_df$AVG_PVALUE < 0.05, "significant up", "not significant"))
+  current_df$DE2.5 <- factor(current_df$DE2.5, levels = ordered_DE)
+  current_df$DE2.5_labels <- ifelse(current_df$DE2.5 != "not significant", current_df$GENE_NAME, NA)
+  
+  DEG.list_W2Relapses.vs.AllCures_f2[[current_df_name]] <- current_df
+}
