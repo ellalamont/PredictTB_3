@@ -64,9 +64,11 @@ ui <- fluidPage(
                        choices = NULL),
            
            # Select genes manually
-           textInput("manual_genes",
-                     label = "Enter Rv# (comma separated)",
-                     placeholder = "Rv1473A, Rv2011c, Rv0494"),
+           textAreaInput("manual_genes",
+                         label = "Enter Rv# (comma OR new line separated)",
+                         placeholder = "Rv1473A\nRv2011c\nRv0494",
+                         rows = 5),
+           
            # Add row clustering options
            numericInput("cutree_rows", 
                         label = "Number of Row Clusters", 
@@ -117,9 +119,13 @@ server <- function(input, output, session) {
   get_selected_genes <- reactive({
     if (input$manual_genes != "") {
       # Process manual input: remove extra spaces, split by commas or spaces
-      genes <- unlist(strsplit(input$manual_genes, "[,\\s]+"))
-      genes <- trimws(genes)  # Trim whitespace
-      genes <- genes[genes != ""]  # Remove empty entries
+      genes <- input$manual_genes %>%
+        gsub("[\r]", "\n", .) %>%          # Normalize Windows line endings
+        gsub(",", "\n", .) %>%             # Turn commas into newlines
+        strsplit("\n") %>% 
+        unlist() %>%
+        trimws() %>%
+        .[. != ""]
     } else if (!is.null(input$my_GeneSet) && input$my_GeneSet %in% names(allGeneSetList[[input$my_GeneSetSource]])) {
       genes <- allGeneSetList[[input$my_GeneSetSource]][[input$my_GeneSet]]
     } else {
@@ -137,7 +143,7 @@ server <- function(input, output, session) {
     selected_genes <- get_selected_genes()
     
     # Count the number of genes in the selected set
-    num_genes <- sum(rownames(my_tpm) %in% allGeneSetList[[input$my_GeneSetSource]][[input$my_GeneSet]])
+    num_genes <- length(selected_genes)
     
     # Dynamically set plot height (base height + extra space per gene)
     plot_height <- max(400, min(2500, num_genes * 40))  # Adjust as needed
