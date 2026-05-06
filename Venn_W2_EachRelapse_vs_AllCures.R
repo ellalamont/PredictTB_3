@@ -62,7 +62,7 @@ genelist_padded <- lapply(genelist_DE1_UP, function(x) {
 })
 df_out <- bind_cols(genelist_padded)
 colnames(df_out) <- names(genelist_DE1_UP)
-write.csv(df_out, "Data/VennDiagram_Genes/W2_EachRelapse.Vs.AllCures_DE1_UP.csv", row.names = FALSE)
+# write.csv(df_out, "Data/VennDiagram_Genes/W2_EachRelapse.Vs.AllCures_DE1_UP.csv", row.names = FALSE)
 
 # DOWN list
 max_len <- max(lengths(genelist_DE1_DOWN))
@@ -72,7 +72,7 @@ genelist_padded <- lapply(genelist_DE1_DOWN, function(x) {
 })
 df_out <- bind_cols(genelist_padded)
 colnames(df_out) <- names(genelist_DE1_DOWN)
-write.csv(df_out, "Data/VennDiagram_Genes/W2_EachRelapse.Vs.AllCures_DE1_DOWN.csv", row.names = FALSE)
+# write.csv(df_out, "Data/VennDiagram_Genes/W2_EachRelapse.Vs.AllCures_DE1_DOWN.csv", row.names = FALSE)
 
 
 
