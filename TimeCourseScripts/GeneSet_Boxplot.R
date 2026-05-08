@@ -22,7 +22,8 @@ facet_themes <- theme(strip.background=element_rect(fill="lightgrey", linewidth 
                       strip.text = element_text(size = 10))
 
 # Labelled Colors
-my_fav_colors <- c(`Cure` = "#0072B2", `Relapse` = "#bc5300")
+# my_fav_colors <- c(`Cure` = "#0072B2", `Relapse` = "#bc5300")
+my_fav_colors <- c(`Cure` = "#0072B2", `Relapse` = "#bc5300", `Broth` = "#999999")
 
 ###########################################################
 ####################  CHOOSE GENESET  #####################
@@ -32,21 +33,21 @@ Current_GeneSet_df <- read.csv(paste0("Data/GeneSet_Data/", CurrentGeneSet, ".cs
 Current_GeneSet_df %>% select(GeneSet) %>% unique()
 
 # Needs to match the GeneSets names
-# myGeneSet <- "Enduring hypoxic response"
+myGeneSet <- "Enduring hypoxic response"
 # myGeneSet <- "dosR regulon"
 # myGeneSet <- "Non-specific stress responses"
-myGeneSet <- "Toxin - antitoxin"
+# myGeneSet <- "Toxin - antitoxin"
 myGenes <- Current_GeneSet_df %>% filter(GeneSet == myGeneSet) %>% pull(Gene)
 
 ###########################################################
 ######################  PROCESS DATA  #####################
 
 my_tpmf <- GoodSamples60_tpmf %>% 
-  dplyr::select(contains("W")) %>% 
+  dplyr::select(contains("W") | contains("Broth")) %>% 
   rownames_to_column("gene") %>%
   filter(gene %in% myGenes) %>%
-  pivot_longer(cols = contains("W"), names_to = "SampleID2", values_to = "TPM") %>%
-  left_join(GoodSputum60_pipeSummary %>% dplyr::select(SampleID2, Outcome, Week), 
+  pivot_longer(cols = c(contains("W"), contains("Broth")), names_to = "SampleID2", values_to = "TPM") %>%
+  left_join(GoodSamples60_pipeSummary %>% dplyr::select(SampleID2, Outcome, Week), 
             by = "SampleID2")
 
 my_tpmf_avg <- my_tpmf %>%
@@ -81,10 +82,10 @@ my_TPM_Boxplot <- my_tpmf_avg %>%
        y = "TPM") +
   my_plot_themes + facet_themes
 my_TPM_Boxplot
-ggsave(my_TPM_Boxplot,
-       file = paste0(myGeneSet, "_tpmf.pdf"),
-       path = "Figures/GeneSet_Boxplots",
-       width = 7, height = 5, units = "in")
+# ggsave(my_TPM_Boxplot,
+#        file = paste0(myGeneSet, "_tpmf.pdf"),
+#        path = "Figures/GeneSet_Boxplots",
+#        width = 7, height = 5, units = "in")
 
 ###########################################################
 #####################  BOXPLOT LOG2  ######################
@@ -103,10 +104,10 @@ my_Log2.TPM_Boxplot <- my_Log2_tpmf_avg %>%
        y = "Log2(TPM+1)") +
   my_plot_themes + facet_themes
 my_Log2.TPM_Boxplot
-ggsave(my_Log2.TPM_Boxplot,
-       file = paste0(myGeneSet, "_log2.pdf"),
-       path = "Figures/GeneSet_Boxplots",
-       width = 7, height = 5, units = "in")
+# ggsave(my_Log2.TPM_Boxplot,
+#        file = paste0(myGeneSet, "_log2_v3.pdf"),
+#        path = "Figures/GeneSet_Boxplots",
+#        width = 7, height = 5, units = "in")
 
 
 
@@ -128,8 +129,57 @@ my_Log2.TPM_Boxplot_v2 <- my_Log2_tpmf_avg %>%
        y = "Log2(TPM+1)") +
   my_plot_themes + facet_themes
 my_Log2.TPM_Boxplot_v2
-ggsave(my_Log2.TPM_Boxplot_v2,
-       file = paste0(myGeneSet, "_log2_v2.pdf"),
+# ggsave(my_Log2.TPM_Boxplot_v2,
+#        file = paste0(myGeneSet, "_log2_v2.pdf"),
+#        path = "Figures/GeneSet_Boxplots",
+#        width = 7, height = 5, units = "in")
+
+###########################################################
+################  PROCESS DATA BY PATIENT  ################
+# 5/8/26: Average by patient not by gene
+
+my_tpmf <- GoodSamples60_tpmf %>% 
+  dplyr::select(contains("W") | contains("Broth")) %>% 
+  rownames_to_column("gene") %>%
+  filter(gene %in% myGenes) %>%
+  pivot_longer(cols = c(contains("W"), contains("Broth")), names_to = "SampleID2", values_to = "TPM") %>%
+  left_join(GoodSamples60_pipeSummary %>% dplyr::select(SampleID2, Outcome, Week), 
+            by = "SampleID2")
+
+my_tpmf_PatientAvg <- my_tpmf %>%
+  group_by(SampleID2, Week, Outcome) %>%
+  summarise(mean_TPM = mean(TPM, na.rm = TRUE), 
+            SD_TPM = sd(TPM, na.rm = TRUE),
+            N_Samples = n(),
+            .groups = "drop")
+
+my_Log2_tpmf_PatientAvg <- my_tpmf %>%
+  mutate(Log2_TPM = log2(TPM+1)) %>%
+  group_by(SampleID2, Week, Outcome) %>%
+  summarise(mean_Log2_TPM = mean(Log2_TPM, na.rm = TRUE), 
+            SD_Log2_TPM = sd(Log2_TPM, na.rm = TRUE),
+            N_Samples = n(),
+            .groups = "drop")
+
+###########################################################
+##################  PATIENT BOXPLOT LOG2  #################
+
+my_Log2.TPM_Boxplot_Patient <- my_Log2_tpmf_PatientAvg %>%
+  ggplot(aes(x = Week, y = mean_Log2_TPM)) +
+  geom_boxplot(aes(fill = Outcome), width = 0.6, outlier.size = 0.9, alpha = 0.4) +
+  geom_point(alpha = 0.7, size = 1, position = position_jitter(0.2)) +
+  # geom_text_repel(aes(label = SampleID2), size= 2, box.padding = 0.4, segment.color = "black", max.overlaps = Inf) + 
+  facet_grid(~ Outcome, scales = "free") +
+  stat_compare_means(aes(group = Week), method = "t.test", paired = F, label = "p.format", size = 3, label.x = 1.4) +
+  scale_fill_manual(values=my_fav_colors) +
+  stat_summary(fun = mean, geom = "point", shape = 23, size = 3, fill = "red") +
+  labs(title = paste0(myGeneSet, ". Each dot is the average value of one Patient"),
+       subtitle = "Two-sample t-test. Mean is red diamond",
+       x = "Oucome",
+       y = "Log2(TPM+1)") +
+  my_plot_themes + facet_themes
+my_Log2.TPM_Boxplot_Patient
+ggsave(my_Log2.TPM_Boxplot_Patient,
+       file = paste0(myGeneSet, "_log2_Patient_v1.pdf"),
        path = "Figures/GeneSet_Boxplots",
        width = 7, height = 5, units = "in")
-
