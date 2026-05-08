@@ -108,6 +108,9 @@ All_pipeSummary <- All_pipeSummary %>% mutate(SampleID2 = paste0(Run2, "_", Samp
 All_pipeSummary <- All_pipeSummary %>%
   mutate(Txn_Coverage = round(AtLeast.10.Reads/4499*100))
 
+# Give the Broth samples an Outcome designation
+All_pipeSummary <- All_pipeSummary %>%
+  mutate(Outcome = replace_when(Outcome, Type2 == "Broth" ~ "Broth"))
 
 ###########################################################
 ############### IMPORT AND PROCESS TPM VALUES #############
