@@ -66,6 +66,18 @@ allGeneSetList <- lapply(allGeneSetList, function(gset) {
 # allGeneSets <- split(EllaGeneSets_2026.04.15$Gene, EllaGeneSets_2026.04.15$GeneSet)
 # save(allGeneSets, file = "Data/GeneSet_Data/EllaGeneSets_2026.04.15.rda")
 
+# 5/11/26: Added the larger enduring hypoxic response gene set from Rustad2008
+# EllaGeneSets_2026.05.11 <- read.csv("Data/GeneSet_Data/EllaGeneSets_2026.05.11.csv")
+# allGeneSets <- split(EllaGeneSets_2026.05.11$Gene, EllaGeneSets_2026.05.11$GeneSet)
+# save(allGeneSets, file = "Data/GeneSet_Data/EllaGeneSets_2026.05.11.rda")
+
+# 5/11/26: Importing the Walter Curated and Cole 1998 gene sets that Claude and Lance scraped off the website
+# WalterCurated_GeneSets_May2026 <- read.csv("Data/GeneSet_Data/WalterCurated_GeneSets_May2026.csv")
+# allGeneSets <- split(WalterCurated_GeneSets_May2026$Gene, WalterCurated_GeneSets_May2026$GeneSet)
+# save(allGeneSets, file = "Data/GeneSet_Data/WalterCurated_GeneSets_May2026.rda")
+# Cole1998_GeneSets_May2026 <- read.csv("Data/GeneSet_Data/Cole1998_GeneSets_May2026.csv")
+# allGeneSets <- split(Cole1998_GeneSets_May2026$Gene, Cole1998_GeneSets_May2026$GeneSet)
+# save(allGeneSets, file = "Data/GeneSet_Data/Cole1998_GeneSets_May2026.rda")
 
 ###########################################################
 ############ iMODULONS: MAKE LISTS OF GROUPS ##############
