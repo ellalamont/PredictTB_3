@@ -28,15 +28,16 @@ my_fav_colors <- c(`Cure` = "#0072B2", `Relapse` = "#bc5300", `Broth` = "#999999
 ###########################################################
 ####################  CHOOSE GENESET  #####################
 
-CurrentGeneSet <- "EllaGeneSets_2026.03.19"
+CurrentGeneSet <- "EllaGeneSets_2026.05.11"
 Current_GeneSet_df <- read.csv(paste0("Data/GeneSet_Data/", CurrentGeneSet, ".csv"))
 Current_GeneSet_df %>% select(GeneSet) %>% unique()
 
 # Needs to match the GeneSets names
-myGeneSet <- "Enduring hypoxic response"
+# myGeneSet <- "Enduring hypoxic response"
 # myGeneSet <- "dosR regulon"
 # myGeneSet <- "Non-specific stress responses"
 # myGeneSet <- "Toxin - antitoxin"
+myGeneSet <- "Reaeration Response"
 myGenes <- Current_GeneSet_df %>% filter(GeneSet == myGeneSet) %>% pull(Gene)
 
 ###########################################################
@@ -105,7 +106,7 @@ my_Log2.TPM_Boxplot <- my_Log2_tpmf_avg %>%
   my_plot_themes + facet_themes
 my_Log2.TPM_Boxplot
 # ggsave(my_Log2.TPM_Boxplot,
-#        file = paste0(myGeneSet, "_log2_v3.pdf"),
+#        file = paste0(myGeneSet, "_log2_v1.pdf"),
 #        path = "Figures/GeneSet_Boxplots",
 #        width = 7, height = 5, units = "in")
 
@@ -168,7 +169,7 @@ my_Log2.TPM_Boxplot_Patient <- my_Log2_tpmf_PatientAvg %>%
   ggplot(aes(x = Week, y = mean_Log2_TPM)) +
   geom_boxplot(aes(fill = Outcome), width = 0.6, outlier.size = 0.9, alpha = 0.4) +
   geom_point(alpha = 0.7, size = 1, position = position_jitter(0.2)) +
-  # geom_text_repel(aes(label = SampleID2), size= 2, box.padding = 0.4, segment.color = "black", max.overlaps = Inf) + 
+  geom_text_repel(aes(label = SampleID2), size= 2, box.padding = 0.4, segment.color = "black", max.overlaps = Inf) + 
   facet_grid(~ Outcome, scales = "free") +
   stat_compare_means(aes(group = Week), method = "t.test", paired = F, label = "p.format", size = 3, label.x = 1.4) +
   scale_fill_manual(values=my_fav_colors) +
@@ -179,7 +180,7 @@ my_Log2.TPM_Boxplot_Patient <- my_Log2_tpmf_PatientAvg %>%
        y = "Log2(TPM+1)") +
   my_plot_themes + facet_themes
 my_Log2.TPM_Boxplot_Patient
-ggsave(my_Log2.TPM_Boxplot_Patient,
-       file = paste0(myGeneSet, "_log2_Patient_v1.pdf"),
-       path = "Figures/GeneSet_Boxplots",
-       width = 7, height = 5, units = "in")
+# ggsave(my_Log2.TPM_Boxplot_Patient,
+#        file = paste0(myGeneSet, "_log2_Patient_v1.pdf"),
+#        path = "Figures/GeneSet_Boxplots",
+#        width = 7, height = 5, units = "in")

@@ -16,7 +16,7 @@ BothWk_PIDs <- c("P_11011", "P_11012", "P_11031", "P_12008", "P_12010",
 BothWk_pipeSummary <- GoodSputum60_pipeSummary %>% 
   filter(Patient %in% BothWk_PIDs)
 
-BothWk_SampleList <- BothWk_pipeSummary %>% pull(SampleID)
+BothWk_SampleList <- BothWk_pipeSummary %>% pull(SampleID2)
 
 BothWk_tpmf_log2 <- GoodSputum60_tpmf_log2 %>% dplyr::select(all_of(BothWk_SampleList))
 
@@ -28,9 +28,9 @@ BothWk_tpmf <- GoodSputum60_tpmf %>% dplyr::select(all_of(BothWk_SampleList))
 
 BothWk_log2TPMf_delta <- BothWk_tpmf_log2 %>%
   rownames_to_column("Gene") %>% 
-  pivot_longer(-Gene, names_to = "SampleID", values_to = "log2TPMf") %>%
-  left_join(BothWk_pipeSummary %>% dplyr::select(SampleID, Week, Patient, Outcome),
-            by = "SampleID") %>%
+  pivot_longer(-Gene, names_to = "SampleID2", values_to = "log2TPMf") %>%
+  left_join(BothWk_pipeSummary %>% dplyr::select(SampleID2, Week, Patient, Outcome),
+            by = "SampleID2") %>%
   pivot_wider(id_cols = c(Gene, Patient, Outcome), 
               names_from = Week, values_from = log2TPMf) %>%
   dplyr::rename(W0_log2TPMf = "Week 0", W2_log2TPMf = "Week 2") %>%
@@ -42,9 +42,9 @@ BothWk_log2TPMf_delta <- BothWk_tpmf_log2 %>%
 options(scipen = 999)
 BothWk_TPMf_ratio <- BothWk_tpmf %>%
   rownames_to_column("Gene") %>% 
-  pivot_longer(-Gene, names_to = "SampleID", values_to = "TPMf") %>%
-  left_join(BothWk_pipeSummary %>% dplyr::select(SampleID, Week, Patient, Outcome),
-            by = "SampleID") %>%
+  pivot_longer(-Gene, names_to = "SampleID2", values_to = "TPMf") %>%
+  left_join(BothWk_pipeSummary %>% dplyr::select(SampleID2, Week, Patient, Outcome),
+            by = "SampleID2") %>%
   pivot_wider(id_cols = c(Gene, Patient, Outcome), 
               names_from = Week, values_from = TPMf) %>%
   dplyr::rename(W0_TPMf = "Week 0", W2_TPMf = "Week 2") %>%
@@ -63,15 +63,15 @@ BothWks_df <- BothWk_log2TPMf_delta %>%
 ###########################################################
 #######################  #######################
 
-gene_stats <- BothWk_log2TPMf_delta %>%
-  drop_na(delta) %>%
-  group_by(Gene) %>%
-  summarise(
-    p = t.test(delta ~ Outcome)$p.value,
-    effect = mean(delta[Outcome == "Relapse"]) -
-      mean(delta[Outcome == "Cure"])
-  ) %>%
-  mutate(p_adj = p.adjust(p, method = "BH"))
+# gene_stats <- BothWk_log2TPMf_delta %>%
+#   drop_na(delta) %>%
+#   group_by(Gene) %>%
+#   summarise(
+#     p = t.test(delta ~ Outcome)$p.value,
+#     effect = mean(delta[Outcome == "Relapse"]) -
+#       mean(delta[Outcome == "Cure"])
+#   ) %>%
+#   mutate(p_adj = p.adjust(p, method = "BH"))
 
 
 

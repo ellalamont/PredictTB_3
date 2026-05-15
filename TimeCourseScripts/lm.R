@@ -15,7 +15,7 @@ source("Import_GeneSets.R")
 ################################################
 ################# PREPARE DATA #################
 
-source("Delta_Weeks0to2.R") # BothWk_log2TPMf_delta
+source("TimeCourseScripts/Delta_Weeks0to2.R") # BothWk_log2TPMf_delta
 
 
 BothWk_log2TPMf_delta$Outcome <- factor(BothWk_log2TPMf_delta$Outcome, 
@@ -100,7 +100,7 @@ names(ranked_genes_vec) <- ranked_genes$Gene
 ranked_genes_vec <- sort(ranked_genes_vec, decreasing = TRUE)
 
 # Load custom gene sets. Needs to have columns Gene, GeneSet. Will take from allGeneSetList
-custom_list <- allGeneSetList[["EllaGeneSets_2026.03.19"]]
+custom_list <- allGeneSetList[["EllaGeneSets_2026.05.11"]]
 
 fgsea_res <- fgsea(
   pathways = custom_list,
